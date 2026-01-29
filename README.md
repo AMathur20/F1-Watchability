@@ -43,8 +43,9 @@ The project is divided into three components:
     -   Ensure `fastf1` is installed in your Home Assistant environment.
 
 3.  **Setup UI**:
-    -   Open `/ui/dashboard.yaml` and copy the code.
-    -   Add a "Manual" card to your Home Assistant dashboard and paste the code.
+    -   Open `/ui/button_card_templates.yaml` and copy the templates to your Dashboard's **Raw Configuration Editor**.
+    -   Open `/ui/dashboard.yaml` and copy the card configuration to a "Manual" card on your dashboard.
+    -   See `/ui/README.md` for detailed instructions.
 
 4.  **Run Tests**:
     -   To verify the logic and scraper:
