@@ -16,12 +16,14 @@ This folder contains the configuration for a premium, neon-styled F1 dashboard c
 
 ### Step 1: Add Templates
 The dashboard relies on **templates** to avoid 500 lines of duplicate code. 
-You must add the templates from `dashboard.yaml` (inside the commented section) to your **Raw Configuration Editor** in Home Assistant.
 
-1.  Edit your Dashboard.
-2.  Click the three dots (top right) -> **Raw Configuration Editor**.
-3.  Add the `button_card_templates:` block at the top level (see `dashboard.yaml` comments).
-4.  Save.
+1.  Open `button_card_templates.yaml`.
+2.  Copy **all the content**.
+3.  Go to your Home Assistant Dashboard -> **Edit Dashboard**.
+4.  Click the three dots (top right) -> **Raw Configuration Editor**.
+5.  Paste the content under `button_card_templates:` at the top level of your config.
+    *If `button_card_templates:` doesn't exist, create it.*
+6.  Save.
 
 ### Step 2: Add the Card
 1.  Click **Add Card** -> **Manual**.
