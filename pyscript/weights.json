@@ -1,0 +1,20 @@
+{
+  "formula_version": "1.0-dummy",
+  "last_updated": "2026-01-28",
+  "weights": {
+    "overtakes_per_lap": 2.5,
+    "lead_changes": 1.5,
+    "weather_volatility_index": 3.0,
+    "safety_car_laps_ratio": 1.0,
+    "base_score": 2.0
+  },
+  "thresholds": {
+    "full_race": 8.0,
+    "race_in_30": 5.0,
+    "highlights_only": 0.0
+  },
+  "metadata": {
+    "normalization_factor": "total_laps",
+    "description": "Initial weights for testing UI and Pyscript logic. To be replaced by calibration output."
+  }
+}
