@@ -1,0 +1,9 @@
+fastf1
+pandas
+numpy
+scikit-learn
+requests
+beautifulsoup4
+lxml
+joblib
+pyyaml
