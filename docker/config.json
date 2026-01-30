@@ -1,0 +1,9 @@
+{
+  "mqtt_broker": "192.168.1.X",
+  "mqtt_port": 1883,
+  "mqtt_topic": "f1/watchability/data",
+  "mqtt_username": "your_username",
+  "mqtt_password": "your_password",
+  "check_interval_seconds": 3600,
+  "fastf1_cache_dir": "/app/f1_cache"
+}
