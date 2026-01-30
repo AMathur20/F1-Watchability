@@ -7,10 +7,18 @@ f1_base:
   show_state: false
   styles:
     card:
-      - background: 'linear-gradient(145deg, #1e1e1e, #121212)'
-      - border-radius: 12px
-      - border: 2px solid var(--border-color)
-      - box-shadow: 0 0 15px var(--glow-color)
+      - background: 'linear-gradient(135deg, rgba(30,30,35,0.95) 0%, rgba(10,10,10,0.98) 100%)'
+      - background-image: >
+          radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+          radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px)
+      - background-size: 20px 20px
+      - background-position: 0 0, 10px 10px
+      - border-radius: 16px
+      - border: 1px solid rgba(255,255,255,0.1)
+      - box-shadow: >
+          0 4px 15px rgba(0,0,0,0.5), 
+          inset 0 0 20px rgba(0,0,0,0.5),
+          0 0 0 1px var(--border-color)
       - overflow: hidden
       - transition: all 0.3s ease-out
     grid:
@@ -18,9 +26,8 @@ f1_base:
       - grid-template-rows: min-content 1fr
       - grid-template-columns: 1fr
   extra_styles: |
-    @keyframes pulse-red { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
-    @keyframes glitch { 0% { transform: translate(0); } 20% { transform: translate(-2px, 2px); } 40% { transform: translate(-2px, -2px); } 60% { transform: translate(2px, 2px); } 80% { transform: translate(2px, -2px); } 100% { transform: translate(0); } }
-    @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes pulse-glow { 0% { box-shadow: 0 0 5px var(--glow-color), inset 0 0 10px rgba(0,0,0,0.5); } 50% { box-shadow: 0 0 15px var(--glow-color), inset 0 0 20px rgba(0,0,0,0.5); } 100% { box-shadow: 0 0 5px var(--glow-color), inset 0 0 10px rgba(0,0,0,0.5); } }
+    @keyframes slide-in { from { transform: translateX(-10px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
   state:
     - operator: template
       value: >
@@ -33,9 +40,9 @@ f1_base:
                 var h = entity.attributes.history;
                 if (!h || !h[i]) return '#333';
                 var s = h[i].score;
-                if (s >= 8.0) return '#ff1801';
-                if (s >= 5.0) return '#ffd700';
-                return '#444';
+                if (s >= 8.0) return '#00ff41'; /* Green for high score */
+                if (s >= 5.0) return '#ffd700'; /* Yellow */
+                return '#ff1801'; /* Red for low/boring */
               ]]]
           - --glow-color: >
               [[[ 
@@ -43,10 +50,11 @@ f1_base:
                 var h = entity.attributes.history;
                 if (!h || !h[i]) return 'transparent';
                 var s = h[i].score;
-                if (s >= 8.0) return 'rgba(255, 24, 1, 0.4)';
-                if (s >= 5.0) return 'rgba(255, 215, 0, 0.4)';
-                return 'rgba(68, 68, 68, 0.2)';
+                if (s >= 8.0) return 'rgba(0, 255, 65, 0.3)';
+                if (s >= 5.0) return 'rgba(255, 215, 0, 0.3)';
+                return 'rgba(255, 24, 1, 0.3)';
               ]]]
+          - box-shadow: var(--glow-color) 0px 0px 10px 0px
 
 f1_race_card_large:
   template: f1_base
@@ -54,29 +62,41 @@ f1_race_card_large:
     grid:
       - grid-template-areas: '"header header" "gauge info"'
       - grid-template-columns: 1fr 1.5fr
-      - padding: 12px
+      - padding: 16px
   custom_fields:
     header:
-      - font-family: 'Formula1-Display-Bold', font-size: 16px, color: white
+      - font-family: 'Formula1-Display-Bold', 'Roboto', sans-serif
+      - font-size: 18px
+      - color: white
       - justify-self: start
       - font-weight: bold
-      - padding-bottom: 8px
+      - letter-spacing: 0.5px
+      - text-shadow: 0 2px 4px rgba(0,0,0,0.8)
+      - padding-bottom: 4px
+      - border-bottom: 1px solid rgba(255,255,255,0.1)
+      - width: 100%
+      - margin-bottom: 8px
     gauge:
       - position: relative
-      - width: 90px
-      - height: 90px
+      - width: 100px
+      - height: 100px
       - align-self: center
       - justify-self: center
     info:
       - align-self: center
       - justify-self: center
+      - width: 100%
   custom_fields:
     header: >
       [[[
         var i = variables.history_index;
         var h = entity.attributes.history;
         if (!h || !h[i]) return "No Data";
-        return `<div>${h[i].gp} <span style="font-size:0.8em; opacity:0.7">${h[i].date ? h[i].date.split('-')[0] : ''}</span></div>`;
+        return `
+          <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+            <span>${h[i].gp}</span>
+            <span style="font-size:0.7em; opacity:0.6; font-family:'Roboto'">${h[i].date ? h[i].date.split('-')[0] : ''}</span>
+          </div>`;
       ]]]
     gauge: >
       [[[
@@ -84,13 +104,32 @@ f1_race_card_large:
         var h = entity.attributes.history;
         if (!h || !h[i]) return '';
         var s = h[i].score;
-        var pct = s * 10;
-        var c = (s >= 8) ? '#ff1801' : (s >= 5) ? '#ffd700' : '#444';
+        var c = (s >= 8) ? '#00ff41' : (s >= 5) ? '#ffd700' : '#ff1801';
+        
+        // Gauge calculation
+        // 240 degree arc (start 150, end 390)
+        var radius = 42;
+        var circumference = 2 * Math.PI * radius;
+        // 60% of circle is empty (gap at bottom) -> check svg dasharray logic
+        // We want a speedometer look: 220 deg arc?
+        // Let's do simple circle for robustness but styled better
+        
         return `
-          <svg viewBox="0 0 100 100" style="width:100%; height:100%;">
-            <circle cx="50" cy="50" r="45" stroke="#333" stroke-width="6" fill="none" />
-            <circle cx="50" cy="50" r="45" stroke="${c}" stroke-width="6" fill="none" stroke-dasharray="283" stroke-dashoffset="${283 - (283 * pct / 100)}" transform="rotate(-90 50 50)" />
-            <text x="50" y="55" text-anchor="middle" fill="white" font-family="Formula1-Display-Bold" font-size="28" font-weight="bold">${s}</text>
+          <svg viewBox="0 0 100 100" style="width:100%; height:100%; filter: drop-shadow(0 0 5px ${c});">
+            <defs>
+              <linearGradient id="grad${i}" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" style="stop-color:${c};stop-opacity:0.3" />
+                <stop offset="100%" style="stop-color:${c};stop-opacity:1" />
+              </linearGradient>
+            </defs>
+            <!-- Track -->
+            <path d="M20,80 A42,42 0 1,1 80,80" fill="none" stroke="#222" stroke-width="8" stroke-linecap="round" />
+            <!-- Progress (approximate for now) -->
+            <path d="M20,80 A42,42 0 1,1 80,80" fill="none" stroke="url(#grad${i})" stroke-width="8" stroke-linecap="round" 
+                  stroke-dasharray="${220}" stroke-dashoffset="${220 - (220 * s / 10)}" />
+            
+            <text x="50" y="55" text-anchor="middle" fill="white" font-family="'Formula1-Display-Bold', sans-serif" font-size="32" font-weight="bold" style="text-shadow: 0 0 10px ${c}">${s}</text>
+            <text x="50" y="75" text-anchor="middle" fill="#ccc" font-family="'Roboto', sans-serif" font-size="10">SCORE</text>
           </svg>
         `;
       ]]]
@@ -101,67 +140,81 @@ f1_race_card_large:
         if (!h || !h[i]) return '';
         var icon = h[i].icon;
         var s = h[i].score;
-        var text = (s >= 8) ? 'Full Race' : (s >= 5) ? 'Race in 30' : 'Highlights';
+        var text = h[i].recommendation || ((s >= 8) ? 'Full Race' : (s >= 5) ? 'Race in 30' : 'Highlights');
         
-        var icon_html = icon;
-        if (icon === '🏎️') icon_html = `<div style="font-size:30px; animation: glitch 2s infinite;">🏎️</div>`;
-        else if (icon === '⏱️') icon_html = `<div style="font-size:30px;"><div style="display:inline-block; animation: rotate 3s linear infinite;">⏱️</div></div>`;
-        else icon_html = `<div style="font-size:30px;">${icon}</div>`;
-        
+        // Use styled SVG/Icon instead of emoji if possible, or style the emoji
         return `
-          <div style="display:flex; align-items:center; gap:10px;">
-            ${icon_html}
-            <div style="color:#ccc; font-size:14px; font-family:sans-serif;">${text}</div>
+          <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+            <div style="font-size:32px; filter: drop-shadow(0 0 5px rgba(255,255,255,0.5));">${icon}</div>
+            <div style="color:#fff; font-size:16px; font-family:'Formula1-Display-Bold', sans-serif; text-align:center; text-shadow:0 0 10px rgba(0,0,0,0.8);">${text}</div>
+            
+            <!-- F1 Car Graphic (decoration) -->
+            <div style="width:100%; height:2px; background:linear-gradient(90deg, transparent, var(--border-color), transparent); margin-top:8px;"></div>
           </div>
         `;
       ]]]
 
 f1_race_card_small:
   template: f1_base
-  aspect_ratio: 4/1
+  aspect_ratio: 3/1
   styles:
     grid:
-      - grid-template-areas: '"score icon gp"'
-      - grid-template-columns: '60px 50px 1fr'
-      - align-items: center
-      - padding: 0 16px
+      - grid-template-areas: '"header header header" "score icon text"'
+      - grid-template-columns: '1fr 0.5fr 1.5fr'
+      - grid-template-rows: 'min-content 1fr'
+      - padding: 12px
+      - row-gap: 8px
   custom_fields:
-    score:
-      - font-family: 'Formula1-Display-Bold'
-      - font-size: 24px
-      - font-weight: bold
-    icon:
-      - font-size: 24px
-      - justify-self: center
-    gp:
-      - font-family: 'Formula1-Display-Bold'
-      - font-size: 16px
+    header:
+      - font-family: 'Formula1-Display-Bold', 'Roboto', sans-serif
+      - font-size: 14px
       - color: white
       - justify-self: start
-      - text-align: left
-      - overflow: hidden
+      - width: 100%
+      - border-bottom: 1px solid rgba(255,255,255,0.05)
+      - padding-bottom: 4px
       - white-space: nowrap
+      - overflow: hidden
       - text-overflow: ellipsis
+    score:
+      - justify-self: center
+      - align-self: center
+    icon:
+      - justify-self: center
+      - align-self: center
+    text:
+      - justify-self: start
+      - align-self: center
   custom_fields:
+    header: >
+      [[[
+        var i = variables.history_index;
+        var h = entity.attributes.history;
+        return (h && h[i]) ? h[i].gp.replace(" Grand Prix", " GP") + " " + (h[i].date ? h[i].date.split('-')[0] : '') : 'No Data';
+      ]]]
     score: >
       [[[
         var i = variables.history_index;
         var h = entity.attributes.history;
         if (!h || !h[i]) return '';
         var s = h[i].score;
-        var c = (s >= 8) ? '#ff1801' : (s >= 5) ? '#ffd700' : '#888';
-        return `<span style="color:${c}">${s}</span>`;
+        var c = (s >= 8) ? '#00ff41' : (s >= 5) ? '#ffd700' : '#ff1801';
+        return `<span style="font-family:'Formula1-Display-Bold'; font-size:28px; color:${c}; text-shadow: 0 0 10px ${c}">${s}</span>`;
       ]]]
     icon: >
       [[[
         var i = variables.history_index;
         var h = entity.attributes.history;
         if (!h || !h[i]) return '';
-        return h[i].icon;
+        return `<div style="font-size:24px;">${h[i].icon}</div>`;
       ]]]
-    gp: >
+    text: >
       [[[
         var i = variables.history_index;
         var h = entity.attributes.history;
-        return (h && h[i]) ? h[i].gp : 'No Data';
+        if (!h || !h[i]) return '';
+        var rec = h[i].recommendation || '';
+        // Shorten text for small layout
+        rec = rec.replace("Watch ", "");
+        return `<span style="font-family:'Roboto'; font-size:12px; color:#ccc; line-height:1.2; display:block;">${rec}</span>`;
       ]]]
