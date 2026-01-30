@@ -65,7 +65,7 @@ def safe_request_html(url, cache_key):
     if os.path.exists(cache_path):
         try:
             with open(cache_path, 'r', encoding='utf-8') as f:
-                logging.info(f"Using cached HTML for {cache_key}")
+                # logging.info(f"Using cached HTML for {cache_key}")
                 return f.read()
         except Exception:
             pass # Fallback to fetch
@@ -96,45 +96,161 @@ def safe_request_html(url, cache_key):
     logging.error(f"Failed to fetch {url} after retries.")
     return None
 
-def get_racefans_rating(year, gp_name):
-    """
-    Search RaceFans.net for the rating of a specific race.
-    """
-    # Clean GP name for search
-    search_term = gp_name.replace(" Grand Prix", "").strip()
-    query = f"{search_term} Grand Prix rated out of ten {year}"
-    search_url = f"https://www.racefans.net/?s={requests.utils.quote(query)}"
+class RaceFansScraper:
+    BASE_URL = "https://www.racefans.net/category/regular-features/rate-the-race/page/{}/"
     
-    # Use cached/safe request
-    html = safe_request_html(search_url, f"{year}_{gp_name}_search")
-    if not html:
-        return None
-    
-    try:
-        soup = BeautifulSoup(html, 'lxml')
-        articles = soup.find_all('article')
-        
-        for article in articles:
-            title_tag = article.find('h2', class_='entry-title')
-            if not title_tag:
-                continue
-            title = title_tag.get_text().strip()
-            
-            # Look for patterns like "Bahrain Grand Prix rated 6.5 out of ten"
-            if str(year) in title and "rated" in title and "out of ten" in title:
-                match = re.search(r'rated (\d+(\.\d+)?) out of ten', title)
-                if match:
-                    rating = float(match.group(1))
-                    logging.info(f"Found Rating for {year} {gp_name}: {rating}")
-                    return rating
-        
-        # Fallback: Try a less specific search? Or just log warning.
-        logging.warning(f"No rating found for {year} {gp_name}")
-        return None
+    def __init__(self):
+        pass
 
-    except Exception as e:
-        logging.error(f"Error scraping {year} {gp_name}: {e}")
-        return None
+    def get_all_ratings(self, years):
+        """
+        Scrape all ratings for the specified years by iterating category pages.
+        Returns a dictionary: {(year, gp_name_normalized): rating}
+        """
+        ratings_map = {}
+        target_years = set(years)
+        min_year = min(target_years)
+        
+        page = 1
+        found_older_year = False
+        
+        while not found_older_year:
+            logging.info(f"Scraping Rate the Race Category - Page {page}")
+            url = self.BASE_URL.format(page)
+            html = safe_request_html(url, f"category_page_{page}")
+            
+            if not html:
+                break
+                
+            soup = BeautifulSoup(html, 'lxml')
+            articles = soup.find_all('article')
+            
+            if not articles:
+                logging.info("No articles found on this page. Stopping.")
+                break
+                
+            page_has_relevant_year = False
+            
+            for article in articles:
+                title_tag = article.find('h2', class_='entry-title')
+                if not title_tag:
+                    continue
+                
+                link_tag = title_tag.find('a')
+                if not link_tag:
+                    continue
+                    
+                title = link_tag.get_text().strip()
+                link = link_tag['href']
+                
+                # Title format: "Rate the race: [Year] [Grand Prix Name]"
+                # Regex to extract year
+                match = re.search(r'Rate the race:\s*(\d{4})\s*(.*)', title, re.IGNORECASE)
+                if match:
+                    year = int(match.group(1))
+                    gp_name_raw = match.group(2).strip() # "Abu Dhabi Grand Prix"
+                    
+                    if year < min_year:
+                        # Found an article older than we care about
+                        # But wait, page might have mixed years (Jan 2025 and Dec 2024)?
+                        # Yes, but if we see e.g. 2021 and we only want 2024+, we can probably stop soon.
+                        # To be safe, we just mark found_older_year if it's significantly older?
+                        # Or just ignore it.
+                        pass
+                    
+                    if year in target_years:
+                        page_has_relevant_year = True
+                        logging.info(f"Found Race: {title} ({link})")
+                        
+                        # Fetch the rating from the article
+                        rating = self._scrape_poll_rating(link, year, gp_name_raw)
+                        if rating is not None:
+                            # Normalize GP Name for mapping
+                            # FastF1 often uses "Abu Dhabi Grand Prix" or similar.
+                            # We'll use a simplified key: (year, gp_name_raw)
+                            # Ideally we match loosely later.
+                            ratings_map[(year, gp_name_raw)] = rating
+            
+            # Optimization: If the whole page only has years older than min_year, stop.
+            # But simpler logic: iterate until we see a year < min_year - 1 ensuring we are safely past?
+            # Or just check logical stopping.
+            # For now, let's limit page depth for safety (e.g. 50 pages is ~500 races, plenty for multiple years)
+            if page > 50:
+                break
+            
+            # Heuristic: If we found years < min_year, we might be done.
+            # Check the LAST article on page.
+            last_article_title = articles[-1].find('h2', class_='entry-title').get_text()
+            last_match = re.search(r'Rate the race:\s*(\d{4})', last_article_title)
+            if last_match and int(last_match.group(1)) < min_year:
+                logging.info(f"reached year {last_match.group(1)} < {min_year}, stopping.")
+                found_older_year = True
+                
+            page += 1
+            
+        return ratings_map
+
+    def _scrape_poll_rating(self, url, year, gp_name):
+        """Extract rating from individual race page."""
+        # Cache key based on URL hash or simplified name
+        cache_key = f"poll_{year}_{gp_name.replace(' ', '_')}"
+        html = safe_request_html(url, cache_key)
+        
+        if not html:
+            return None
+            
+        soup = BeautifulSoup(html, 'lxml')
+        
+        # Look for wp-polls container
+        # Pattern: div with id starting with polls- and ending with -ans
+        poll_container = soup.find('div', id=re.compile(r'polls-\d+-ans'))
+        
+        if not poll_container:
+            # logging.warning(f"No poll container found for {year} {gp_name}")
+            return None
+            
+        vote_data = []
+        
+        for li in poll_container.find_all('li'):
+            text = li.get_text(strip=True)
+            # Regex to extract Score and Percentage
+            # Matches: "10(4%)" or "10 (4%)"
+            # Some formats might be slightly different
+            match = re.match(r'^(\d+)\s*\((\d+)%\)', text)
+            if not match:
+                # Try fallback: find small tag
+                score_node = li.contents[0] if li.contents else None
+                small_node = li.find('small')
+                if score_node and small_node:
+                    try:
+                        score_text = str(score_node).strip()
+                        if score_text.isdigit():
+                            score = int(score_text)
+                            percent_text = small_node.get_text(strip=True).replace('(', '').replace('%)', '').replace('%', '')
+                            percent = int(percent_text)
+                            vote_data.append((score, percent))
+                            continue
+                    except ValueError:
+                        pass
+                continue
+                
+            score = int(match.group(1))
+            percent = int(match.group(2))
+            vote_data.append((score, percent))
+            
+        if not vote_data:
+            return None
+            
+        # Calculate Weighted Average
+        weighted_sum = sum(score * percent for score, percent in vote_data)
+        total_percent_sum = sum(percent for _, percent in vote_data)
+        
+        if total_percent_sum == 0:
+            return 0
+            
+        final_rating = weighted_sum / total_percent_sum
+        # logging.info(f"  > Scraped Rating for {gp_name}: {final_rating:.2f}")
+        return final_rating
 
 def get_telemetry_metrics(session):
     """
@@ -178,36 +294,13 @@ def get_telemetry_metrics(session):
         lead_changes_normalized = lead_changes / total_laps
 
         # 4. Overtakes (Approximation)
-        # Filters:
-        # - Remove Pit laps (PitInTime not NaT OR PitOutTime not NaT)
-        # - This removes the massive position loss/gain from entering/exiting pits
-        
         laps_sorted = laps.sort_values(['Driver', 'LapNumber'])
         
-        # Mark pit laps
-        # Check if PitInTime or PitOutTime is set
-        # 'PitInTime' means they pitted AT THE END of this lap
-        # 'PitOutTime' means they pitted AT THE START of this lap (so previous lap was pit in)
-        # We should exclude any lap where a pit interaction occurred to be safe?
-        # Or just where they lost position?
-        # Safest: Exclude laps where PitInTime is not NaT (entering pits) 
-        # AND laps where PitOutTime is not NaT (leaving pits).
-        
         is_pit_lap = (~pd.isna(laps_sorted['PitInTime'])) | (~pd.isna(laps_sorted['PitOutTime']))
-        clean_laps = laps_sorted[~is_pit_lap].copy()
-        
-        # We need to re-calculate previous position based on CLEAN laps? 
-        # No, because that would skip the gap.
-        # We want: Delta = Pos(L) - Pos(L-1). If L or L-1 was a pit lap, ignore this delta.
         
         laps_sorted['PrevPos'] = laps_sorted.groupby('Driver')['Position'].shift(1)
         laps_sorted['PrevPitIn'] = laps_sorted.groupby('Driver')['PitInTime'].shift(1)
         laps_sorted['PrevPitOut'] = laps_sorted.groupby('Driver')['PitOutTime'].shift(1)
-        
-        # Row is valid for overtake calculation if:
-        # 1. Current lap is NOT a pit lap
-        # 2. Previous lap was NOT a pit lap
-        # (If previous lap was pit lap, the delta is "recovery" or "loss" from pit)
         
         valid_transition = (
             (pd.isna(laps_sorted['PitInTime'])) & 
@@ -218,7 +311,6 @@ def get_telemetry_metrics(session):
         
         laps_sorted['PosChange'] = (laps_sorted['Position'] - laps_sorted['PrevPos']).fillna(0).abs()
         
-        # Only sum changes for valid transitions
         total_pos_change = laps_sorted.loc[valid_transition, 'PosChange'].sum()
         overtakes_proxy = total_pos_change / total_laps
 
@@ -233,6 +325,13 @@ def get_telemetry_metrics(session):
         logging.error(f"Error processing telemetry for {session.event['EventName']}: {e}")
         return None
 
+def normalize_gp_name(name):
+    """Normalize GP name for matching."""
+    # "Abu Dhabi Grand Prix" -> "Abu Dhabi"
+    # "Rolex Belgian Grand Prix" -> "Belgian" ?
+    # Keep simple: lower case, remove "grand prix"
+    return name.lower().replace(" grand prix", "").strip()
+
 def main():
     setup_fastf1()
     config = load_config()
@@ -244,13 +343,33 @@ def main():
     # Track new data
     new_data = []
     
-    # Create a composite key for checking existence (Year + GP Name)
-    if not df_existing.empty:
+    if notdf_existing.empty:
+        # Key: (Year, GP Name normalized)
         existing_keys = set(zip(df_existing['year'], df_existing['gp_name']))
     else:
         existing_keys = set()
     
-    for year in years:
+    # 1. Scrape Ratings FIRST (Batch)
+    logging.info("Step 1: Scraping Ratings from RaceFans...")
+    scraper = RaceFansScraper()
+    ratings_map = scraper.get_all_ratings(years)
+    logging.info(f"Found ratings for {len(ratings_map)} races.")
+    
+    # Normalize keys in ratings_map for easier lookup
+    # {(2025, "Abu Dhabi Grand Prix"): 7.5}
+    # -> {(2025, "abu dhabi"): 7.5}
+    # But wait, FastF1 names might be slightly different ("Abu Dhabi Grand Prix" vs "Abu Dhabi")
+    # Let's create a lookup based on year + normalized name
+    lookup_map = {}
+    for (y, raw_name), rating in ratings_map.items():
+        lookup_map[(y, normalize_gp_name(raw_name))] = rating
+        
+    
+    # 2. Process Telemetry
+    logging.info("Step 2: Processing Telemetry for matching races...")
+    
+    # Sort years to process in order
+    for year in sorted(years):
         logging.info(f"Processing Season {year}...")
         try:
             schedule = fastf1.get_event_schedule(year)
@@ -258,6 +377,8 @@ def main():
             
             for _, event in completed_races.iterrows():
                 gp_name = event['EventName']
+                start_date = event['EventDate']
+                
                 # Skip pre-season testing
                 if "Presse" in gp_name or "Testing" in gp_name:
                     continue
@@ -266,17 +387,25 @@ def main():
                 if (year, gp_name) in existing_keys:
                     logging.info(f"  > Skipping {gp_name} ({year}) - Already in data.")
                     continue
-
-                logging.info(f"  > Processing {gp_name} ({year})")
                 
-                # 1. Get Rating
-                rating = get_racefans_rating(year, gp_name)
+                # Find Rating
+                norm_name = normalize_gp_name(gp_name)
+                rating = lookup_map.get((year, norm_name))
+                
                 if rating is None:
-                    logging.info(f"    Skipping {gp_name} - No rating found.")
+                    # Try fuzzy match or just log warning
+                    # Sometimes names differ: "São Paulo" vs "Sao Paulo"
+                    # Simple fix: try replacing special chars?
+                    # For now just log
+                    logging.warning(f"  > No rating found for {gp_name} ({year}). (Normalized: {norm_name})")
                     continue
                 
-                # 2. Get Telemetry
+                logging.info(f"  > Processing {gp_name} ({year}) - Rating: {rating:.2f}")
+                
+                # Get Telemetry
                 try:
+                    # We utilize the event name or round number?
+                    # fastf1.get_session(year, gp_name, 'R') works well usually.
                     session = fastf1.get_session(year, gp_name, 'R')
                     metrics = get_telemetry_metrics(session)
                     
@@ -285,39 +414,32 @@ def main():
                         metrics['gp_name'] = gp_name
                         metrics['year'] = year
                         new_data.append(metrics)
-                        logging.info(f"    Added data for {gp_name}: Rating={rating}, Metrics={metrics}")
+                        logging.info(f"    Added data: {metrics}")
                         
-                        # Save intermediate progress
-                        # (Optional, but good for long runs)
-                    
+                        # Save incrementally
+                        temp_df = pd.DataFrame(new_data)
+                        if not df_existing.empty:
+                            temp_combined = pd.concat([df_existing, temp_df], ignore_index=True)
+                        else:
+                            temp_combined = temp_df
+                        temp_combined.drop_duplicates(subset=['year', 'gp_name'], keep='last', inplace=True)
+                        temp_combined.to_csv(DATA_FILE, index=False)
+
                 except Exception as e:
                     logging.error(f"    Failed to get session for {gp_name}: {e}")
 
         except Exception as e:
             logging.error(f"Error getting schedule for {year}: {e}")
 
-    # Merge and Save
-    if new_data:
-        df_new = pd.DataFrame(new_data)
-        if not df_existing.empty:
-            df_final = pd.concat([df_existing, df_new], ignore_index=True)
-        else:
-            df_final = df_new
-        
-        # Deduplicate just in case
-        df_final.drop_duplicates(subset=['year', 'gp_name'], keep='last', inplace=True)
-        
-        df_final.to_csv(DATA_FILE, index=False)
-        logging.info(f"Saved merged data ({len(df_final)} races) to {DATA_FILE}")
-    else:
-        logging.info("No new data found. Using existing data.")
-        df_final = df_existing
-
+    # Final Merge and Regression
+    df_final = load_existing_data() # Reload to get everything including incremental saves
+    
     if len(df_final) < 5:
         logging.error("Not enough data points for regression (need at least 5). Aborting.")
         return
 
     # Regression
+    logging.info("Step 3: Calculating Weights...")
     features = ['overtakes_per_lap', 'lead_changes_per_lap', 'weather_volatility', 'safety_car_freq']
     X = df_final[features]
     y = df_final['rating']
@@ -350,6 +472,7 @@ def main():
         json.dump(weights, f, indent=4)
     
     logging.info("Calibration complete. Weights saved to weights.json")
+    logging.info(f"Weights: {weights['weights']}")
 
 if __name__ == "__main__":
     main()
