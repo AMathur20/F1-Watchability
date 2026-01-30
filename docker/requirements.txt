@@ -1,0 +1,5 @@
+fastf1
+pandas
+numpy
+paho-mqtt
+scikit-learn

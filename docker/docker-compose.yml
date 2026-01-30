@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  f1-watchability:
+    build: .
+    container_name: f1-watchability
+    restart: unless-stopped
+    volumes:
+      - ./config.json:/app/config.json
+      - ./f1_cache:/app/f1_cache
+      - ./f1_history.json:/app/f1_history.json
+    environment:
+      - PYTHONUNBUFFERED=1
