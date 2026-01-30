@@ -6,15 +6,14 @@ services:
     container_name: f1-watchability
     restart: unless-stopped
     volumes:
-      # Mount cache for persistence (Required)
-      - f1_cache:/app/f1_cache
-      # Mount history for persistence (Required)
-      - f1_history:/app/f1_history.json
-      # Mount weights (Required if custom, otherwise built-in)
+      # Mount a volume to /data for persistence (History + Cache)
+      - f1_data:/data
+      # Mount weights if you want them external/updated
       # - ./weights.json:/app/weights.json
     environment:
       - PYTHONUNBUFFERED=1
-      # MQTT Configuration (Can be set here or in Portainer UI)
+      - DATA_DIR=/data
+      # MQTT Configuration
       - MQTT_BROKER=192.168.1.X
       - MQTT_PORT=1883
       - MQTT_USERNAME=your_username
@@ -22,5 +21,4 @@ services:
       - CHECK_INTERVAL=3600
 
 volumes:
-  f1_cache:
-  f1_history:
+  f1_data:
