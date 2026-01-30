@@ -41,8 +41,8 @@ The project is divided into three components:
 
 2.  **Setup Inference (Docker)**:
     -   Go to `/docker`.
-    -   Copy `config.json` and edit your MQTT details.
-    -   Run `docker-compose up -d --build`.
+    -   **Option A (Docker Compose)**: Copy `config.json`, edit it, and run `docker-compose up -d --build`.
+    -   **Option B (Portainer)**: Use `docker-compose.yml` as a Stack and configure Environment Variables directly in Portainer.
 
 3.  **Setup Home Assistant**:
     -   Ensure your HA is connected to the same MQTT broker.

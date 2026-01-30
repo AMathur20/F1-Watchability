@@ -30,13 +30,27 @@ DEFAULT_CONFIG = {
 }
 
 def load_config():
+    # Start with defaults
+    config = DEFAULT_CONFIG.copy()
+
+    # Override with config.json if present
     if os.path.exists(CONFIG_PATH):
         try:
             with open(CONFIG_PATH, 'r') as f:
-                return {**DEFAULT_CONFIG, **json.load(f)}
+                file_config = json.load(f)
+                config.update(file_config)
         except Exception as e:
-            logger.error(f"Failed to load config, using defaults: {e}")
-    return DEFAULT_CONFIG
+            logger.error(f"Failed to load config file: {e}")
+
+    # Override with Environment Variables
+    if os.getenv("MQTT_BROKER"): config["mqtt_broker"] = os.getenv("MQTT_BROKER")
+    if os.getenv("MQTT_PORT"): config["mqtt_port"] = int(os.getenv("MQTT_PORT"))
+    if os.getenv("MQTT_TOPIC"): config["mqtt_topic"] = os.getenv("MQTT_TOPIC")
+    if os.getenv("MQTT_USERNAME"): config["mqtt_username"] = os.getenv("MQTT_USERNAME")
+    if os.getenv("MQTT_PASSWORD"): config["mqtt_password"] = os.getenv("MQTT_PASSWORD")
+    if os.getenv("CHECK_INTERVAL"): config["check_interval_seconds"] = int(os.getenv("CHECK_INTERVAL"))
+    
+    return config
 
 def setup_fastf1(cache_dir):
     if not os.path.exists(cache_dir):
