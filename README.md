@@ -45,7 +45,7 @@ docker-compose up -d --build
     -   You can define `MQTT_BROKER`, `MQTT_USERNAME`, etc., directly in the stack environment variables section.
 
 3.  **Persistence**:
-    -   The stack uses named volumes `f1_cache` and `f1_history` to keep data safe across restarts.
+    -   The stack uses a single named volume `f1_data` mounted to `/data` to store both `f1_history.json` and the FastF1 cache.
 
 4.  **Weights**:
     -   Ensure `weights.json` is included in the build context (folder you upload) OR bind-mount it if you want to update it frequently.
