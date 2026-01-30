@@ -54,11 +54,6 @@ The project is divided into three components:
     -   Open `/ui/dashboard.yaml` and copy the card configuration to a "Manual" card on your dashboard.
     -   See `/ui/README.md` for detailed instructions.
 
-5.  **Run Tests**:
-    -   To verify the logic and scraper:
-        ```bash
-        python3 -m unittest discover tests
-        ```
 
 ## License
 
