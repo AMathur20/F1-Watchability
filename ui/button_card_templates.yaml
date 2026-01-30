@@ -57,88 +57,64 @@ f1_race_card_large:
       - padding: 12px
   custom_fields:
     header:
-      card:
-        type: custom:button-card
-        styles:
-          card: [background: none, box-shadow: none, border: none]
-          name: [font-family: 'Formula1-Display-Bold', font-size: 16px, color: white, justify-self: start]
-        name: >
-          [[[
-            var i = variables.history_index;
-            var h = entity.attributes.history;
-            if (!h || !h[i]) return "No Data";
-            return h[i].gp + " " + (h[i].date ? h[i].date.split('-')[0] : '');
-          ]]]
+      - font-family: 'Formula1-Display-Bold', font-size: 16px, color: white
+      - justify-self: start
+      - font-weight: bold
+      - padding-bottom: 8px
     gauge:
-      card:
-        type: custom:button-card
-        styles:
-          card: [background: none, box-shadow: none, border: none]
-          custom_fields:
-            circle:
-              - position: absolute
-              - top: 0
-              - left: 0
-              - width: 100%
-              - height: 100%
-            val:
-              - position: absolute
-              - top: 50%
-              - left: 50%
-              - transform: translate(-50%, -50%)
-              - font-family: 'Formula1-Display-Bold'
-              - font-size: 28px
-              - font-weight: bold
-              - color: white
-        custom_fields:
-          val: >
-            [[[
-              var i = variables.history_index;
-              var h = entity.attributes.history;
-              return (h && h[i]) ? h[i].score : '-';
-            ]]]
-          circle: >
-            [[[
-              var i = variables.history_index;
-              var h = entity.attributes.history;
-              if (!h || !h[i]) return '';
-              var s = h[i].score;
-              var pct = s * 10;
-              var c = (s >= 8) ? '#ff1801' : (s >= 5) ? '#ffd700' : '#444';
-              return `<svg viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="45" stroke="#333" stroke-width="6" fill="none" />
-                <circle cx="50" cy="50" r="45" stroke="${c}" stroke-width="6" fill="none" stroke-dasharray="283" stroke-dashoffset="${283 - (283 * pct / 100)}" transform="rotate(-90 50 50)" />
-              </svg>`;
-            ]]]
+      - position: relative
+      - width: 90px
+      - height: 90px
+      - align-self: center
+      - justify-self: center
     info:
-      card:
-        type: custom:button-card
-        styles:
-          card: [background: none, box-shadow: none, border: none, align-items: start, justify-content: center]
-          grid: [grid-template-areas: '"icon text"', grid-template-columns: '40px 1fr', gap: '8px']
-          img_cell: [align-self: center]
-          name: [color: '#ccc', font-size: 14px, align-self: center]
-        custom_fields:
-          icon: >
-            [[[
-              var i = variables.history_index;
-              var h = entity.attributes.history;
-              if (!h || !h[i]) return '';
-              var icon = h[i].icon;
-              if (icon === '🏎️') return `<div style="font-size:30px; animation: glitch 2s infinite;">🏎️</div>`;
-              if (icon === '⏱️') return `<div style="font-size:30px;"><div style="display:inline-block; animation: rotate 2s linear infinite;">⏱️</div></div>`;
-              return `<div style="font-size:30px;">${icon}</div>`;
-            ]]]
-          text: >
-            [[[
-              var i = variables.history_index;
-              var h = entity.attributes.history;
-              if (!h || !h[i]) return '';
-              var s = h[i].score;
-              if (s >= 8) return 'Full Race';
-              if (s >= 5) return 'Race in 30';
-              return 'Highlights';
-            ]]]
+      - align-self: center
+      - justify-self: center
+  custom_fields:
+    header: >
+      [[[
+        var i = variables.history_index;
+        var h = entity.attributes.history;
+        if (!h || !h[i]) return "No Data";
+        return `<div>${h[i].gp} <span style="font-size:0.8em; opacity:0.7">${h[i].date ? h[i].date.split('-')[0] : ''}</span></div>`;
+      ]]]
+    gauge: >
+      [[[
+        var i = variables.history_index;
+        var h = entity.attributes.history;
+        if (!h || !h[i]) return '';
+        var s = h[i].score;
+        var pct = s * 10;
+        var c = (s >= 8) ? '#ff1801' : (s >= 5) ? '#ffd700' : '#444';
+        return `
+          <svg viewBox="0 0 100 100" style="width:100%; height:100%;">
+            <circle cx="50" cy="50" r="45" stroke="#333" stroke-width="6" fill="none" />
+            <circle cx="50" cy="50" r="45" stroke="${c}" stroke-width="6" fill="none" stroke-dasharray="283" stroke-dashoffset="${283 - (283 * pct / 100)}" transform="rotate(-90 50 50)" />
+            <text x="50" y="55" text-anchor="middle" fill="white" font-family="Formula1-Display-Bold" font-size="28" font-weight="bold">${s}</text>
+          </svg>
+        `;
+      ]]]
+    info: >
+      [[[
+        var i = variables.history_index;
+        var h = entity.attributes.history;
+        if (!h || !h[i]) return '';
+        var icon = h[i].icon;
+        var s = h[i].score;
+        var text = (s >= 8) ? 'Full Race' : (s >= 5) ? 'Race in 30' : 'Highlights';
+        
+        var icon_html = icon;
+        if (icon === '🏎️') icon_html = `<div style="font-size:30px; animation: glitch 2s infinite;">🏎️</div>`;
+        else if (icon === '⏱️') icon_html = `<div style="font-size:30px;"><div style="display:inline-block; animation: rotate 3s linear infinite;">⏱️</div></div>`;
+        else icon_html = `<div style="font-size:30px;">${icon}</div>`;
+        
+        return `
+          <div style="display:flex; align-items:center; gap:10px;">
+            ${icon_html}
+            <div style="color:#ccc; font-size:14px; font-family:sans-serif;">${text}</div>
+          </div>
+        `;
+      ]]]
 
 f1_race_card_small:
   template: f1_base
@@ -154,20 +130,34 @@ f1_race_card_small:
       - font-family: 'Formula1-Display-Bold'
       - font-size: 24px
       - font-weight: bold
-      - color: >
-          [[[
-            var i = variables.history_index;
-            var h = entity.attributes.history;
-            if (!h || !h[i]) return '#fff';
-            var s = h[i].score;
-            return (s >= 8) ? '#ff1801' : (s >= 5) ? '#ffd700' : '#888';
-          ]]]
+    icon:
+      - font-size: 24px
+      - justify-self: center
+    gp:
+      - font-family: 'Formula1-Display-Bold'
+      - font-size: 16px
+      - color: white
+      - justify-self: start
+      - text-align: left
+      - overflow: hidden
+      - white-space: nowrap
+      - text-overflow: ellipsis
+  custom_fields:
+    score: >
+      [[[
+        var i = variables.history_index;
+        var h = entity.attributes.history;
+        if (!h || !h[i]) return '';
+        var s = h[i].score;
+        var c = (s >= 8) ? '#ff1801' : (s >= 5) ? '#ffd700' : '#888';
+        return `<span style="color:${c}">${s}</span>`;
+      ]]]
     icon: >
       [[[
         var i = variables.history_index;
         var h = entity.attributes.history;
         if (!h || !h[i]) return '';
-        return `<div style="font-size:24px;">${h[i].icon}</div>`;
+        return h[i].icon;
       ]]]
     gp: >
       [[[
