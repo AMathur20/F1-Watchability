@@ -40,9 +40,9 @@ f1_base:
                 var h = entity.attributes.history;
                 if (!h || !h[i]) return '#333';
                 var s = h[i].score;
-                if (s >= 8.0) return '#00ff41'; /* Green for high score */
-                if (s >= 5.0) return '#ffd700'; /* Yellow */
-                return '#ff1801'; /* Red for low/boring */
+                if (s >= 8.0) return '#00ff41';
+                if (s >= 5.0) return '#ffd700';
+                return '#ff1801';
               ]]]
           - --glow-color: >
               [[[ 
@@ -63,29 +63,29 @@ f1_race_card_large:
       - grid-template-areas: '"header header" "gauge info"'
       - grid-template-columns: 1fr 1.5fr
       - padding: 16px
-  custom_fields:
-    header:
-      - font-family: 'Formula1-Display-Bold', 'Roboto', sans-serif
-      - font-size: 18px
-      - color: white
-      - justify-self: start
-      - font-weight: bold
-      - letter-spacing: 0.5px
-      - text-shadow: 0 2px 4px rgba(0,0,0,0.8)
-      - padding-bottom: 4px
-      - border-bottom: 1px solid rgba(255,255,255,0.1)
-      - width: 100%
-      - margin-bottom: 8px
-    gauge:
-      - position: relative
-      - width: 100px
-      - height: 100px
-      - align-self: center
-      - justify-self: center
-    info:
-      - align-self: center
-      - justify-self: center
-      - width: 100%
+    custom_fields:
+      header:
+        - font-family: 'Formula1-Display-Bold', 'Roboto', sans-serif
+        - font-size: 18px
+        - color: white
+        - justify-self: start
+        - font-weight: bold
+        - letter-spacing: 0.5px
+        - text-shadow: 0 2px 4px rgba(0,0,0,0.8)
+        - padding-bottom: 4px
+        - border-bottom: 1px solid rgba(255,255,255,0.1)
+        - width: 100%
+        - margin-bottom: 8px
+      gauge:
+        - position: relative
+        - width: 100px
+        - height: 100px
+        - align-self: center
+        - justify-self: center
+      info:
+        - align-self: center
+        - justify-self: center
+        - width: 100%
   custom_fields:
     header: >
       [[[
@@ -106,13 +106,7 @@ f1_race_card_large:
         var s = h[i].score;
         var c = (s >= 8) ? '#00ff41' : (s >= 5) ? '#ffd700' : '#ff1801';
         
-        // Gauge calculation
-        // 240 degree arc (start 150, end 390)
         var radius = 42;
-        var circumference = 2 * Math.PI * radius;
-        // 60% of circle is empty (gap at bottom) -> check svg dasharray logic
-        // We want a speedometer look: 220 deg arc?
-        // Let's do simple circle for robustness but styled better
         
         return `
           <svg viewBox="0 0 100 100" style="width:100%; height:100%; filter: drop-shadow(0 0 5px ${c});">
@@ -122,12 +116,9 @@ f1_race_card_large:
                 <stop offset="100%" style="stop-color:${c};stop-opacity:1" />
               </linearGradient>
             </defs>
-            <!-- Track -->
             <path d="M20,80 A42,42 0 1,1 80,80" fill="none" stroke="#222" stroke-width="8" stroke-linecap="round" />
-            <!-- Progress (approximate for now) -->
             <path d="M20,80 A42,42 0 1,1 80,80" fill="none" stroke="url(#grad${i})" stroke-width="8" stroke-linecap="round" 
                   stroke-dasharray="${220}" stroke-dashoffset="${220 - (220 * s / 10)}" />
-            
             <text x="50" y="55" text-anchor="middle" fill="white" font-family="'Formula1-Display-Bold', sans-serif" font-size="32" font-weight="bold" style="text-shadow: 0 0 10px ${c}">${s}</text>
             <text x="50" y="75" text-anchor="middle" fill="#ccc" font-family="'Roboto', sans-serif" font-size="10">SCORE</text>
           </svg>
@@ -142,13 +133,15 @@ f1_race_card_large:
         var s = h[i].score;
         var text = h[i].recommendation || ((s >= 8) ? 'Full Race' : (s >= 5) ? 'Race in 30' : 'Highlights');
         
-        // Use styled SVG/Icon instead of emoji if possible, or style the emoji
+        var icon_html = icon;
+        if (icon === '🏎️') icon_html = `<div style="font-size:30px; animation: glitch 2s infinite;">🏎️</div>`;
+        else if (icon === '⏱️') icon_html = `<div style="font-size:30px;"><div style="display:inline-block; animation: rotate 3s linear infinite;">⏱️</div></div>`;
+        else icon_html = `<div style="font-size:30px;">${icon}</div>`;
+        
         return `
           <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
             <div style="font-size:32px; filter: drop-shadow(0 0 5px rgba(255,255,255,0.5));">${icon}</div>
             <div style="color:#fff; font-size:16px; font-family:'Formula1-Display-Bold', sans-serif; text-align:center; text-shadow:0 0 10px rgba(0,0,0,0.8);">${text}</div>
-            
-            <!-- F1 Car Graphic (decoration) -->
             <div style="width:100%; height:2px; background:linear-gradient(90deg, transparent, var(--border-color), transparent); margin-top:8px;"></div>
           </div>
         `;
@@ -164,27 +157,27 @@ f1_race_card_small:
       - grid-template-rows: 'min-content 1fr'
       - padding: 12px
       - row-gap: 8px
-  custom_fields:
-    header:
-      - font-family: 'Formula1-Display-Bold', 'Roboto', sans-serif
-      - font-size: 14px
-      - color: white
-      - justify-self: start
-      - width: 100%
-      - border-bottom: 1px solid rgba(255,255,255,0.05)
-      - padding-bottom: 4px
-      - white-space: nowrap
-      - overflow: hidden
-      - text-overflow: ellipsis
-    score:
-      - justify-self: center
-      - align-self: center
-    icon:
-      - justify-self: center
-      - align-self: center
-    text:
-      - justify-self: start
-      - align-self: center
+    custom_fields:
+      header:
+        - font-family: 'Formula1-Display-Bold', 'Roboto', sans-serif
+        - font-size: 14px
+        - color: white
+        - justify-self: start
+        - width: 100%
+        - border-bottom: 1px solid rgba(255,255,255,0.05)
+        - padding-bottom: 4px
+        - white-space: nowrap
+        - overflow: hidden
+        - text-overflow: ellipsis
+      score:
+        - justify-self: center
+        - align-self: center
+      icon:
+        - justify-self: center
+        - align-self: center
+      text:
+        - justify-self: start
+        - align-self: center
   custom_fields:
     header: >
       [[[
@@ -214,7 +207,6 @@ f1_race_card_small:
         var h = entity.attributes.history;
         if (!h || !h[i]) return '';
         var rec = h[i].recommendation || '';
-        // Shorten text for small layout
         rec = rec.replace("Watch ", "");
         return `<span style="font-family:'Roboto'; font-size:12px; color:#ccc; line-height:1.2; display:block;">${rec}</span>`;
       ]]]
