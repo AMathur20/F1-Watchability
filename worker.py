@@ -13,10 +13,21 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # Configuration
+# Configuration
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'config.json')
 WEIGHTS_PATH = os.path.join(os.path.dirname(__file__), 'weights.json')
-HISTORY_PATH = os.path.join(os.path.dirname(__file__), 'f1_history.json')
-CACHE_DIR = os.path.join(os.path.dirname(__file__), 'f1_cache')
+
+# Persistent Data Directory
+DATA_DIR = os.getenv("DATA_DIR", "/data")
+if not os.path.exists(DATA_DIR):
+    try:
+         os.makedirs(DATA_DIR)
+    except Exception as e:
+         logger.warning(f"Could not create {DATA_DIR}, falling back to current dir: {e}")
+         DATA_DIR = os.path.dirname(__file__)
+
+HISTORY_PATH = os.path.join(DATA_DIR, 'f1_history.json')
+CACHE_DIR = os.path.join(DATA_DIR, 'f1_cache')
 
 # Defaults
 DEFAULT_CONFIG = {
