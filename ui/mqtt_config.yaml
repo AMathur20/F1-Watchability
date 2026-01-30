@@ -1,0 +1,18 @@
+mqtt:
+  sensor:
+    - name: "F1 Watchability"
+      state_topic: "f1/watchability/data"
+      value_template: "{{ value_json.current_race.score }}"
+      json_attributes_topic: "f1/watchability/data"
+      json_attributes_template: >-
+        {
+          "gp_name": "{{ value_json.current_race.gp }}",
+          "icon": "{{ value_json.current_race.icon }}",
+          "recommendation": "{{ value_json.current_race.recommendation }}",
+          "date": "{{ value_json.current_race.date }}",
+          "metrics": {{ value_json.current_race.metrics | tojson }},
+          "history": {{ value_json.history | tojson }},
+          "last_updated": "{{ value_json.last_updated }}"
+        }
+      icon: "mdi:formula1"
+      unique_id: "f1_watchability_docker"
