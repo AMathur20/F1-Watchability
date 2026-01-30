@@ -13,10 +13,10 @@ The project is divided into three components:
     -   Analyzes race telemetry (FastF1).
     -   Generates a weighted model (`weights.json`).
 
-2.  **Inference** (`/pyscript`):
-    -   Home Assistant Pyscript.
-    -   Runs automatically 5 minutes after a race finishes.
-    -   Calculates the score using real-time data and the calibrated model.
+2.  **Inference** (`/docker`):
+    -   Standalone Docker container.
+    -   Runs periodically (default 1h) and checks for race completions.
+    -   Calculates score and publishes to Home Assistant via MQTT.
     -   Updates `sensor.f1_watchability`.
 
 3.  **UI** (`/ui`):
@@ -27,27 +27,34 @@ The project is divided into three components:
 
 ### Prerequisites
 
--   **Home Assistant** with [Pyscript](https://github.com/custom-components/pyscript) installed.
+-   **Home Assistant** with MQTT broker (e.g., Mosquitto).
+-   **Docker** (for running the inference worker).
 -   Python 3.9+ (for local calibration).
 
 ### Installation
 
 1.  **Generate Weights (Optional)**:
     -   If you want to recalibrate the model, go to `/calibration`.
-    -   Update `calibration_config.json` if needed (e.g., to add a new season).
+    -   Update `calibration_config.json` if needed.
     -   Run `python calibrate_weights.py`.
-    -   Otherwise, use the provided default `weights.json`.
+    -   Copy `weights.json` to `/docker/weights.json`.
 
-2.  **Setup Inference**:
-    -   Copy `pyscript/f1_watchability.py`, `pyscript/weights.json`, and `pyscript/f1_history.json` to your Home Assistant `config/pyscript/` folder.
-    -   Ensure `fastf1` is installed in your Home Assistant environment.
+2.  **Setup Inference (Docker)**:
+    -   Go to `/docker`.
+    -   Copy `config.json` and edit your MQTT details.
+    -   Run `docker-compose up -d --build`.
 
-3.  **Setup UI**:
+3.  **Setup Home Assistant**:
+    -   Ensure your HA is connected to the same MQTT broker.
+    -   Add the sensor configuration from `/ui/mqtt_config.yaml` to your `configuration.yaml` or `sensors.yaml`.
+    -   Restart HA to load the new sensor.
+
+4.  **Setup UI**:
     -   Open `/ui/button_card_templates.yaml` and copy the templates to your Dashboard's **Raw Configuration Editor**.
     -   Open `/ui/dashboard.yaml` and copy the card configuration to a "Manual" card on your dashboard.
     -   See `/ui/README.md` for detailed instructions.
 
-4.  **Run Tests**:
+5.  **Run Tests**:
     -   To verify the logic and scraper:
         ```bash
         python3 -m unittest discover tests
