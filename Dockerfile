@@ -9,8 +9,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY worker.py .
-# Copy weights from parent or assume they are copied to build context
-# We will assume build context includes everything or we copy explicitly
-# For now, let's assume we copy them in.
+COPY weights.json .
+COPY test_mqtt.py .
 
 CMD ["python", "worker.py"]
