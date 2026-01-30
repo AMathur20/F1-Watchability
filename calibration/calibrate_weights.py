@@ -343,7 +343,7 @@ def main():
     # Track new data
     new_data = []
     
-    if notdf_existing.empty:
+    if not df_existing.empty:
         # Key: (Year, GP Name normalized)
         existing_keys = set(zip(df_existing['year'], df_existing['gp_name']))
     else:
