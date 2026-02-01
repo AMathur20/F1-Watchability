@@ -1,212 +1,142 @@
-f1_base:
-  variables:
-    history_index: 0
-  aspect_ratio: 2/1
-  show_icon: false
-  show_name: false
-  show_state: false
-  styles:
-    card:
-      - background: 'linear-gradient(135deg, rgba(30,30,35,0.95) 0%, rgba(10,10,10,0.98) 100%)'
-      - background-image: >
-          radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-          radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px)
-      - background-size: 20px 20px
-      - background-position: 0 0, 10px 10px
-      - border-radius: 16px
-      - border: 1px solid rgba(255,255,255,0.1)
-      - box-shadow: >
-          0 4px 15px rgba(0,0,0,0.5), 
-          inset 0 0 20px rgba(0,0,0,0.5),
-          0 0 0 1px var(--border-color)
-      - overflow: hidden
-      - transition: all 0.3s ease-out
-    grid:
-      - grid-template-areas: '"header" "content"'
-      - grid-template-rows: min-content 1fr
-      - grid-template-columns: 1fr
-  extra_styles: |
-    @keyframes pulse-glow { 0% { box-shadow: 0 0 5px var(--glow-color), inset 0 0 10px rgba(0,0,0,0.5); } 50% { box-shadow: 0 0 15px var(--glow-color), inset 0 0 20px rgba(0,0,0,0.5); } 100% { box-shadow: 0 0 5px var(--glow-color), inset 0 0 10px rgba(0,0,0,0.5); } }
-    @keyframes slide-in { from { transform: translateX(-10px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-  state:
-    - operator: template
-      value: >
-        [[[ return true; ]]]
-      styles:
-        card:
-          - --border-color: >
-              [[[ 
-                var i = variables.history_index;
-                var h = entity.attributes.history;
-                if (!h || !h[i]) return '#333';
-                var s = h[i].score;
-                if (s >= 8.0) return '#00ff41';
-                if (s >= 5.0) return '#ffd700';
-                return '#ff1801';
-              ]]]
-          - --glow-color: >
-              [[[ 
-                var i = variables.history_index;
-                var h = entity.attributes.history;
-                if (!h || !h[i]) return 'transparent';
-                var s = h[i].score;
-                if (s >= 8.0) return 'rgba(0, 255, 65, 0.3)';
-                if (s >= 5.0) return 'rgba(255, 215, 0, 0.3)';
-                return 'rgba(255, 24, 1, 0.3)';
-              ]]]
-          - box-shadow: var(--glow-color) 0px 0px 10px 0px
+button_card_templates:
+  f1_container:
+    styles:
+      card:
+        - background-color: "#111111"
+        - font-family: "'Formula1-Display-Bold', sans-serif !important"
+        - font-weight: bold !important  # Tells the browser to use the 'bold' face defined in CSS
+        - font-style: italic !important # Slants the text to match the F1 "Speed" aesthetic
+        - text-transform: uppercase
+        # Increased pattern scale slightly for better visibility
+        - background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVQIW2NkQAKrVq36zwjjgzhh2uGAAZAJ2CBGMIYhCDUAR98O9V9G9SIAAAAASUVORK5CYII=")
+        - background-repeat: repeat
+        - background-size: 6px 6px
+        - border: 1px solid #333
+        - border-radius: 24px
+        - padding: 30px
+        # These three lines fix the centering
+        - display: grid
+        - place-items: center 
+        - align-content: center
+        - box-shadow: >
+            inset 0 0 60px rgba(0,0,0,1),
+            0 0 20px rgba(255, 24, 1, 0.3),
+            0 12px 30px rgba(0, 162, 255, 0.3)
 
-f1_race_card_large:
-  template: f1_base
-  styles:
-    grid:
-      - grid-template-areas: '"header header" "gauge info"'
-      - grid-template-columns: 1fr 1.5fr
-      - padding: 16px
-    custom_fields:
-      header:
-        - font-family: 'Formula1-Display-Bold', 'Roboto', sans-serif
-        - font-size: 18px
-        - color: white
-        - justify-self: start
-        - font-weight: bold
-        - letter-spacing: 0.5px
-        - text-shadow: 0 2px 4px rgba(0,0,0,0.8)
-        - padding-bottom: 4px
-        - border-bottom: 1px solid rgba(255,255,255,0.1)
-        - width: 100%
-        - margin-bottom: 8px
-      gauge:
-        - position: relative
-        - width: 100px
-        - height: 100px
-        - align-self: center
-        - justify-self: center
-      info:
-        - align-self: center
-        - justify-self: center
-        - width: 100%
-  custom_fields:
-    header: >
-      [[[
-        var i = variables.history_index;
-        var h = entity.attributes.history;
-        if (!h || !h[i]) return "No Data";
-        return `
-          <div style="display:flex; justify-content:space-between; align-items:flex-end;">
-            <span>${h[i].gp}</span>
-            <span style="font-size:0.7em; opacity:0.6; font-family:'Roboto'">${h[i].date ? h[i].date.split('-')[0] : ''}</span>
-          </div>`;
-      ]]]
-    gauge: >
-      [[[
-        var i = variables.history_index;
-        var h = entity.attributes.history;
-        if (!h || !h[i]) return '';
-        var s = h[i].score;
-        var c = (s >= 8) ? '#00ff41' : (s >= 5) ? '#ffd700' : '#ff1801';
-        
-        var radius = 42;
-        
-        return `
-          <svg viewBox="0 0 100 100" style="width:100%; height:100%; filter: drop-shadow(0 0 5px ${c});">
-            <defs>
-              <linearGradient id="grad${i}" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" style="stop-color:${c};stop-opacity:0.3" />
-                <stop offset="100%" style="stop-color:${c};stop-opacity:1" />
-              </linearGradient>
-            </defs>
-            <path d="M20,80 A42,42 0 1,1 80,80" fill="none" stroke="#222" stroke-width="8" stroke-linecap="round" />
-            <path d="M20,80 A42,42 0 1,1 80,80" fill="none" stroke="url(#grad${i})" stroke-width="8" stroke-linecap="round" 
-                  stroke-dasharray="${220}" stroke-dashoffset="${220 - (220 * s / 10)}" />
-            <text x="50" y="55" text-anchor="middle" fill="white" font-family="'Formula1-Display-Bold', sans-serif" font-size="32" font-weight="bold" style="text-shadow: 0 0 10px ${c}">${s}</text>
-            <text x="50" y="75" text-anchor="middle" fill="#ccc" font-family="'Roboto', sans-serif" font-size="10">SCORE</text>
-          </svg>
-        `;
-      ]]]
-    info: >
-      [[[
-        var i = variables.history_index;
-        var h = entity.attributes.history;
-        if (!h || !h[i]) return '';
-        var icon = h[i].icon;
-        var s = h[i].score;
-        var text = h[i].recommendation || ((s >= 8) ? 'Full Race' : (s >= 5) ? 'Race in 30' : 'Highlights');
-        
-        var icon_html = icon;
-        if (icon === '🏎️') icon_html = `<div style="font-size:30px; animation: glitch 2s infinite;">🏎️</div>`;
-        else if (icon === '⏱️') icon_html = `<div style="font-size:30px;"><div style="display:inline-block; animation: rotate 3s linear infinite;">⏱️</div></div>`;
-        else icon_html = `<div style="font-size:30px;">${icon}</div>`;
-        
-        return `
-          <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
-            <div style="font-size:32px; filter: drop-shadow(0 0 5px rgba(255,255,255,0.5));">${icon}</div>
-            <div style="color:#fff; font-size:16px; font-family:'Formula1-Display-Bold', sans-serif; text-align:center; text-shadow:0 0 10px rgba(0,0,0,0.8);">${text}</div>
-            <div style="width:100%; height:2px; background:linear-gradient(90deg, transparent, var(--border-color), transparent); margin-top:8px;"></div>
-          </div>
-        `;
-      ]]]
+  f1_base:
+    variables:
+      history_index: 0
+    aspect_ratio: 2.1/1
+    show_icon: false
+    show_name: false
+    show_state: false
+    styles:
+      card:
+        - background: rgba(35, 35, 35, 0.7) # Slightly darker for better contrast
+        - backdrop-filter: blur(12px)
+        - border-radius: 14px
+        - border: 1px solid rgba(255, 255, 255, 0.1)
+        - box-shadow: 0 4px 15px rgba(0,0,0,0.5)
+        - overflow-wrap: break-word
+        - font-family: "'Formula1-Display-Bold', sans-serif !important"
+        - font-weight: bold !important  # Tells the browser to use the 'bold' face defined in CSS
+        - font-style: italic !important # Slants the text to match the F1 "Speed" aesthetic
+        - text-transform: uppercase
+        - letter-spacing: 1px
 
-f1_race_card_small:
-  template: f1_base
-  aspect_ratio: 3/1
-  styles:
-    grid:
-      - grid-template-areas: '"header header header" "score icon text"'
-      - grid-template-columns: '1fr 0.5fr 1.5fr'
-      - grid-template-rows: 'min-content 1fr'
-      - padding: 12px
-      - row-gap: 8px
+  # Large card (Left Column)
+  f1_race_card_large:
+    template: f1_base
+    styles:
+      grid:
+        - grid-template-areas: '"header header" "gauge info"'
+        - grid-template-columns: 1fr 1fr
+        - padding: 12px
+      custom_fields:
+        header:
+          - font-family: "'Formula1-Display-Bold', sans-serif"
+          - font-size: 14px
+          - color: "white"
+          - justify-self: start
+          - text-shadow: 0 2px 4px black
+          - margin-bottom: 8px
+          - overflow-wrap: break-word
+        gauge:
+          - width: 100%
+          - padding-top: 5px
+        info:
+          - justify-self: center
+          - align-self: center
     custom_fields:
-      header:
-        - font-family: 'Formula1-Display-Bold', 'Roboto', sans-serif
-        - font-size: 14px
-        - color: white
-        - justify-self: start
-        - width: 100%
-        - border-bottom: 1px solid rgba(255,255,255,0.05)
-        - padding-bottom: 4px
-        - white-space: nowrap
-        - overflow: hidden
-        - text-overflow: ellipsis
-      score:
-        - justify-self: center
-        - align-self: center
-      icon:
-        - justify-self: center
-        - align-self: center
-      text:
-        - justify-self: start
-        - align-self: center
-  custom_fields:
-    header: >
-      [[[
-        var i = variables.history_index;
-        var h = entity.attributes.history;
-        return (h && h[i]) ? h[i].gp.replace(" Grand Prix", " GP") + " " + (h[i].date ? h[i].date.split('-')[0] : '') : 'No Data';
-      ]]]
-    score: >
-      [[[
-        var i = variables.history_index;
-        var h = entity.attributes.history;
-        if (!h || !h[i]) return '';
-        var s = h[i].score;
-        var c = (s >= 8) ? '#00ff41' : (s >= 5) ? '#ffd700' : '#ff1801';
-        return `<span style="font-family:'Formula1-Display-Bold'; font-size:28px; color:${c}; text-shadow: 0 0 10px ${c}">${s}</span>`;
-      ]]]
-    icon: >
-      [[[
-        var i = variables.history_index;
-        var h = entity.attributes.history;
-        if (!h || !h[i]) return '';
-        return `<div style="font-size:24px;">${h[i].icon}</div>`;
-      ]]]
-    text: >
-      [[[
-        var i = variables.history_index;
-        var h = entity.attributes.history;
-        if (!h || !h[i]) return '';
-        var rec = h[i].recommendation || '';
-        rec = rec.replace("Watch ", "");
-        return `<span style="font-family:'Roboto'; font-size:12px; color:#ccc; line-height:1.2; display:block;">${rec}</span>`;
-      ]]]
+      header: >
+        [[[
+          var i = variables.history_index;
+          var h = entity.attributes.history;
+          if (!h || !h[i]) return "No Data";
+          return `<span style="font-size:12px; text-transform:uppercase; line-height:1.2; white-space: normal; word-break: break-word;">${h[i].gp} </span>`;
+        ]]]
+      gauge: >
+        [[[
+          var i = variables.history_index;
+          var h = entity.attributes.history;
+          if (!h || !h[i]) return '';
+          var s = h[i].score;
+          var c = (s >= 8) ? '#00ff41' : (s >= 5) ? '#ffd700' : '#ff1801';
+          return `
+            <svg viewBox="0 0 100 85">
+              <defs>
+                <linearGradient id="arcGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#ff1801" />
+                  <stop offset="50%" stop-color="#ffd700" />
+                  <stop offset="100%" stop-color="#00ff41" />
+                </linearGradient>
+              </defs>
+              <path d="M15,75 A35,35 0 0,1 85,75" fill="none" stroke="#222" stroke-width="8" stroke-linecap="round" />
+              <path d="M15,75 A35,35 0 0,1 85,75" fill="none" stroke="url(#arcGrad)" stroke-width="10" stroke-linecap="round" 
+                    stroke-dasharray="120" stroke-dashoffset="${120 - (120 * s / 10)}" />
+              <text x="50" y="72" text-anchor="middle" fill="white" font-family="'Formula1-Display-Bold'" font-size="24" style="text-shadow: 0 0 10px ${c}">${s}</text>
+            </svg>`;
+        ]]]
+      info: >
+        [[[
+          var i = variables.history_index;
+          var h = entity.attributes.history;
+          if (!h || !h[i]) return '';
+          var text = (h[i].score >= 8) ? 'Full Race' : (h[i].score >= 5) ? 'Race in 30' : 'Highlights';
+          return `
+            <div style="text-align:center;">
+              <div style="color:white; font-family:'Formula1-Display-Bold'; font-size:12px; text-transform:uppercase; line-height:1.2; letter-spacing: 1px; white-space: normal; word-break: break-word;">${text}</div>
+            </div>`;
+        ]]]
+
+  # Small card (Right Column)
+  f1_race_card_small:
+    template: f1_base
+    aspect_ratio: 3.2/1
+    styles:
+      grid:
+        - grid-template-areas: '"score gp"'
+        - grid-template-columns: 65px 1fr
+        - align-items: center
+        - padding: 10px
+    custom_fields:
+      score: >
+        [[[
+          var i = variables.history_index;
+          var h = entity.attributes.history;
+          if (!h || !h[i]) return '';
+          var s = h[i].score;
+          var c = (s >= 8) ? '#00ff41' : (s >= 5) ? '#ffd700' : '#ff1801';
+          return `<div style="color:${c}; font-family:'Formula1-Display-Bold'; font-size:26px; text-shadow: 0 0 10px ${c}aa;">${s}</div>`;
+        ]]]
+      gp: >
+        [[[
+          var i = variables.history_index;
+          var h = entity.attributes.history;
+          if (!h || !h[i]) return '';
+          return `
+            <div style="display:flex; flex-direction:column; margin-left:5px;">
+              <div style="color:white; font-family:'Formula1-Display-Bold'; font-size:11px; line-height:1.2; white-space: normal; word-break: break-word;">${h[i].gp}</div>
+  
+            </div>`;
+        ]]]
