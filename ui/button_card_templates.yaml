@@ -2,27 +2,24 @@ button_card_templates:
   f1_container:
     styles:
       card:
-        - background-color: "#111111"
-        - font-family: "'Formula1-Display-Bold', sans-serif !important"
-        - font-weight: bold !important  # Tells the browser to use the 'bold' face defined in CSS
-        - font-style: italic !important # Slants the text to match the F1 "Speed" aesthetic
+        - background-color: '#111111'
+        - font-family: '''Formula1-Display-Bold'', sans-serif !important'
+        - font-weight: bold !important
+        - font-style: italic !important
         - text-transform: uppercase
-        # Increased pattern scale slightly for better visibility
-        - background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVQIW2NkQAKrVq36zwjjgzhh2uGAAZAJ2CBGMIYhCDUAR98O9V9G9SIAAAAASUVORK5CYII=")
-        - background-repeat: repeat
-        - background-size: 6px 6px
-        - border: 1px solid #333
+        - background-image: url("/local/images/f1_background.jpg")
+        - background-position: center
+        - background-repeat: no-repeat
+        - background-size: cover;
+        - border: 0px none
         - border-radius: 24px
         - padding: 30px
-        # These three lines fix the centering
         - display: grid
-        - place-items: center 
+        - place-items: center
         - align-content: center
         - box-shadow: >
-            inset 0 0 60px rgba(0,0,0,1),
-            0 0 20px rgba(255, 24, 1, 0.3),
-            0 12px 30px rgba(0, 162, 255, 0.3)
-
+            inset 0 0 60px rgba(0,0,0,1), 0 0 20px rgba(255, 24, 1, 0.3), 0 12px
+            30px rgba(0, 162, 255, 0.3)
   f1_base:
     variables:
       history_index: 0
@@ -32,19 +29,17 @@ button_card_templates:
     show_state: false
     styles:
       card:
-        - background: rgba(35, 35, 35, 0.7) # Slightly darker for better contrast
-        - backdrop-filter: blur(12px)
+        - background: none
+        - backdrop-filter: blur(7px)
         - border-radius: 14px
-        - border: 1px solid rgba(255, 255, 255, 0.1)
+        - border: 1px none rgba(255, 255, 255, 0.1)
         - box-shadow: 0 4px 15px rgba(0,0,0,0.5)
         - overflow-wrap: break-word
-        - font-family: "'Formula1-Display-Bold', sans-serif !important"
-        - font-weight: bold !important  # Tells the browser to use the 'bold' face defined in CSS
-        - font-style: italic !important # Slants the text to match the F1 "Speed" aesthetic
+        - font-family: '''Formula1-Display-Bold'', sans-serif !important'
+        - font-weight: bold !important
+        - font-style: italic !important
         - text-transform: uppercase
         - letter-spacing: 1px
-
-  # Large card (Left Column)
   f1_race_card_large:
     template: f1_base
     styles:
@@ -54,12 +49,13 @@ button_card_templates:
         - padding: 12px
       custom_fields:
         header:
-          - font-family: "'Formula1-Display-Bold', sans-serif"
+          - font-family: '''Formula1-Display-Bold'', sans-serif'
           - font-size: 14px
-          - color: "white"
+          - color: white
           - justify-self: start
           - text-shadow: 0 2px 4px black
           - margin-bottom: 8px
+          - margin-top: 7px
           - overflow-wrap: break-word
         gauge:
           - width: 100%
@@ -68,14 +64,14 @@ button_card_templates:
           - justify-self: center
           - align-self: center
     custom_fields:
-      header: >
+      header: |
         [[[
           var i = variables.history_index;
           var h = entity.attributes.history;
           if (!h || !h[i]) return "No Data";
           return `<span style="font-size:12px; text-transform:uppercase; line-height:1.2; white-space: normal; word-break: break-word;">${h[i].gp} </span>`;
         ]]]
-      gauge: >
+      gauge: |
         [[[
           var i = variables.history_index;
           var h = entity.attributes.history;
@@ -97,7 +93,7 @@ button_card_templates:
               <text x="50" y="72" text-anchor="middle" fill="white" font-family="'Formula1-Display-Bold'" font-size="24" style="text-shadow: 0 0 10px ${c}">${s}</text>
             </svg>`;
         ]]]
-      info: >
+      info: |
         [[[
           var i = variables.history_index;
           var h = entity.attributes.history;
@@ -108,8 +104,6 @@ button_card_templates:
               <div style="color:white; font-family:'Formula1-Display-Bold'; font-size:12px; text-transform:uppercase; line-height:1.2; letter-spacing: 1px; white-space: normal; word-break: break-word;">${text}</div>
             </div>`;
         ]]]
-
-  # Small card (Right Column)
   f1_race_card_small:
     template: f1_base
     aspect_ratio: 3.2/1
@@ -120,7 +114,7 @@ button_card_templates:
         - align-items: center
         - padding: 10px
     custom_fields:
-      score: >
+      score: |
         [[[
           var i = variables.history_index;
           var h = entity.attributes.history;
@@ -129,7 +123,7 @@ button_card_templates:
           var c = (s >= 8) ? '#00ff41' : (s >= 5) ? '#ffd700' : '#ff1801';
           return `<div style="color:${c}; font-family:'Formula1-Display-Bold'; font-size:26px; text-shadow: 0 0 10px ${c}aa;">${s}</div>`;
         ]]]
-      gp: >
+      gp: |
         [[[
           var i = variables.history_index;
           var h = entity.attributes.history;
@@ -137,6 +131,6 @@ button_card_templates:
           return `
             <div style="display:flex; flex-direction:column; margin-left:5px;">
               <div style="color:white; font-family:'Formula1-Display-Bold'; font-size:11px; line-height:1.2; white-space: normal; word-break: break-word;">${h[i].gp}</div>
-  
+
             </div>`;
         ]]]
