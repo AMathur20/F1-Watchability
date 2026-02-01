@@ -18,6 +18,7 @@ The project is divided into three components:
     -   Runs periodically (default 1h) and checks for race completions.
     -   Calculates score and publishes to Home Assistant via MQTT.
     -   Updates `sensor.f1_watchability`.
+    -   The Portainer branch contains a release that can be used directly through Portainer. See the branch readme for more information.
 
 3.  **UI** (`/ui`):
     -   Lovelace Dashboard card.
