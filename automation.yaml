@@ -1,0 +1,35 @@
+alias: "F1 Watchability: New Race Score Notification"
+description: Sends a notification when a new F1 watchability score is published.
+triggers:
+  - entity_id: sensor.f1_watchability
+    trigger: state
+conditions:
+  - condition: template
+    value_template: >
+      {{ trigger.from_state.attributes.history[0].gp !=
+      trigger.to_state.attributes.history[0].gp or 
+         trigger.from_state.attributes.history[0].score != trigger.to_state.attributes.history[0].score }}    
+actions:
+  - data:
+      title: 🏁 New F1 Score
+      message: >
+        {% set h = state_attr('sensor.f1_watchability', 'history')[0] %}
+
+        {% set score = h.score | float %}
+
+        {% if score >= 8 %}
+          {% set emoji = '🟢' %}
+        {% elif score >= 5 %}
+          {% set emoji = '🟡' %}
+        {% else %}
+          {% set emoji = '🔴' %}
+        {% endif %}
+
+        🏎️🚥🏆💨
+
+        The score for the {{ h.gp }} is in!  {{ emoji }} Rating: {{ score }}/10
+        🏎️
+      data:
+        tag: f1-score-update
+    action: notify.mobile_app_XYZ # Replace with your notification service
+mode: single

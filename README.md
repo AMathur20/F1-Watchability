@@ -24,6 +24,14 @@ The project is divided into three components:
     -   Lovelace Dashboard card.
     -   Displays the score, recommendation (🏎️/⏱️/📺), and history.
 
+## Screenshots
+
+<p align="center">
+  <img src="screenshots/desktop.jpeg" width="400" alt="Desktop UI" />
+  <img src="screenshots/mobile.jpeg" width="200" alt="Mobile UI" />
+  <img src="screenshots/notification.jpeg" width="200" alt="Notification" />
+</p>
+
 ## Getting Started
 
 ### Prerequisites
@@ -54,6 +62,14 @@ The project is divided into three components:
     -   Open `/ui/button_card_templates.yaml` and copy the templates to your Dashboard's **Raw Configuration Editor**.
     -   Open `/ui/dashboard.yaml` and copy the card configuration to a "Manual" card on your dashboard.
     -   See `/ui/README.md` for detailed instructions.
+
+## Automation & Notifications
+
+Get notified as soon as a new race score is posted! You can use the provided [automation.yaml](automation.yaml) to set up a Home Assistant automation.
+
+1.  Open [automation.yaml](automation.yaml).
+2.  Copy the content into your Home Assistant `automations.yaml` or create a new Automation via the UI (using YAML mode).
+3.  **Important**: Update the `action` section to point to your specific notification service (e.g., `notify.mobile_app_your_phone`).
 
 
 ## License
