@@ -15,18 +15,8 @@ logger = logging.getLogger(__name__)
 # Configuration
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'config.json')
 WEIGHTS_PATH = os.path.join(os.path.dirname(__file__), 'weights.json')
-
-# Persistent Data Directory
-DATA_DIR = os.getenv("DATA_DIR", "/data")
-if not os.path.exists(DATA_DIR):
-    try:
-         os.makedirs(DATA_DIR)
-    except Exception as e:
-         logger.warning(f"Could not create {DATA_DIR}, falling back to current dir: {e}")
-         DATA_DIR = os.path.dirname(__file__)
-
-HISTORY_PATH = os.path.join(DATA_DIR, 'f1_history.json')
-CACHE_DIR = os.path.join(DATA_DIR, 'f1_cache')
+HISTORY_PATH = os.path.join(os.path.dirname(__file__), 'f1_history.json')
+CACHE_DIR = os.path.join(os.path.dirname(__file__), 'f1_cache')
 
 # Defaults
 DEFAULT_CONFIG = {
@@ -70,7 +60,7 @@ def setup_fastf1(cache_dir):
 
 def publish_mqtt(config, payload):
     try:
-        client = mqtt.Client()
+        client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
         if config.get("mqtt_username"):
             client.username_pw_set(config["mqtt_username"], config["mqtt_password"])
         
@@ -156,12 +146,28 @@ def calculate_metrics(session):
         logger.error(f"Error processing metrics: {e}")
         return None
 
-def process_race(year, gp_name, round_num):
-    """
-    Fetch and score a specific race.
-    """
+def fetch_and_score_latest_race(config):
+    # Silence FastF1
+    logging.getLogger('fastf1').setLevel(logging.WARNING)
+    
+    setup_fastf1(config['fastf1_cache_dir'])
+    
+    now = datetime.datetime.now()
+    year = now.year
+    
     try:
-        logger.info(f"Analyzing {year} {gp_name} (Round {round_num})...")
+        schedule = fastf1.get_event_schedule(year)
+        past_races = schedule[schedule['EventDate'] < now]
+        if past_races.empty:
+            logger.info("No past races found for this year.")
+            return None
+            
+        last_race = past_races.iloc[-1]
+        gp_name = last_race['EventName']
+        round_num = int(last_race['RoundNumber'])
+        
+        logger.info(f"Analyzing {gp_name} (Round {round_num})...")
+        
         session = fastf1.get_session(year, round_num, 'R')
         metrics = calculate_metrics(session)
         
@@ -181,6 +187,7 @@ def process_race(year, gp_name, round_num):
         t = weights_data.get('thresholds', {})
         
         # Calculate Score
+        # Formula: sum(metric * weight) + base_score
         score = (
             (metrics['overtakes_per_lap'] * w.get('overtakes_per_lap', 0)) +
             (metrics['lead_changes'] * w.get('lead_changes', 0)) +
@@ -211,58 +218,14 @@ def process_race(year, gp_name, round_num):
             "round": round_num,
             "metrics": metrics
         }
+        
         return result
         
     except Exception as e:
-        logger.error(f"Error processing race {year} {gp_name}: {e}")
+        logger.error(f"Error fetching/scoring race: {e}")
         return None
 
-def fetch_recent_races(config, limit=5):
-    """
-    Fetch the last N races.
-    """
-    # Silence FastF1
-    logging.getLogger('fastf1').setLevel(logging.WARNING)
-    setup_fastf1(config['fastf1_cache_dir'])
-    
-    now = datetime.datetime.now()
-    year = now.year
-    
-    # Get schedule
-    schedule = fastf1.get_event_schedule(year)
-    past_races = schedule[schedule['EventDate'] < now]
-    
-    # Fallback to previous year if empty
-    if past_races.empty:
-        logger.info(f"No past races for {year}, checking {year-1}...")
-        year -= 1
-        schedule = fastf1.get_event_schedule(year)
-        past_races = schedule[schedule['EventDate'] < now]
-    
-    # If still empty (very rare), return empty
-    if past_races.empty:
-        logger.warning("No past races found.")
-        return []
-    
-    # Take last N
-    targets = past_races.tail(limit)
-    results = []
-    
-    # Iterate in reverse (newest first)
-    for idx, row in targets.iloc[::-1].iterrows():
-        gp_name = row['EventName']
-        round_num = int(row['RoundNumber'])
-        
-        res = process_race(year, gp_name, round_num)
-        if res:
-            results.append(res)
-            
-    return results
-
-def update_history(new_results):
-    """
-    Merge new results into history.
-    """
+def update_history(result):
     history = []
     if os.path.exists(HISTORY_PATH):
         try:
@@ -271,73 +234,58 @@ def update_history(new_results):
         except:
             pass
             
-    # Merge logic
-    # Create dict for fast lookup
-    history_map = {(x['date'], x['gp']): x for x in history}
+    # Deduplicate
+    existing_idx = next((i for i, x in enumerate(history) if x['gp'] == result['gp'] and x['date'] == result['date']), None)
     
-    changed = False
-    for res in new_results:
-        key = (res['date'], res['gp'])
-        if key not in history_map:
-            history_map[key] = res
-            changed = True
-        # Could update if force refresh needed, but assume immutable for now
-            
-    if changed:
-        # Re-list and sort
-        history = list(history_map.values())
-        history.sort(key=lambda x: x['date'], reverse=True)
-        history = history[:5] # Keep 5
+    if existing_idx is not None:
+        history[existing_idx] = result
+    else:
+        history.append(result)
         
-        with open(HISTORY_PATH, 'w') as f:
-            json.dump(history, f, indent=4)
-            
+    # Sort
+    history.sort(key=lambda x: x['date'], reverse=True)
+    history = history[:5]
+    
+    with open(HISTORY_PATH, 'w') as f:
+        json.dump(history, f, indent=4)
+        
     return history
 
 def main():
     logger.info("Starting F1 Watchability Worker...")
     config = load_config()
     
-    # Initial Check: Do we have history?
-    existing_history = []
-    if os.path.exists(HISTORY_PATH):
-        try:
-            with open(HISTORY_PATH, 'r') as f:
-                existing_history = json.load(f)
-        except:
-            pass
-            
-    if len(existing_history) < 5:
-        logger.info(f"History has {len(existing_history)} items. Fetching recent races to fill...")
-        new_results = fetch_recent_races(config, limit=5)
-        history = update_history(new_results)
-        
-        # Publish init
-        if history:
-             payload = {
-                "last_updated": datetime.datetime.now().isoformat(),
-                "current_race": history[0],
-                "history": history
-            }
-             publish_mqtt(config, payload)
-    
     while True:
         try:
-            # Normal periodic check (just check latest)
-            # Actually, `fetch_recent_races` with limit=1 is fine
-            new_results = fetch_recent_races(config, limit=1)
+            result = fetch_and_score_latest_race(config)
             
-            if new_results:
-                history = update_history(new_results)
+            if result:
+                logger.info(f" scored {result['gp']}: {result['score']}")
+                history = update_history(result)
                 
+                # Payload for MQTT
                 payload = {
                     "last_updated": datetime.datetime.now().isoformat(),
-                    "current_race": history[0],
+                    "current_race": result,
                     "history": history
                 }
                 
                 publish_mqtt(config, payload)
                 
+            else:
+                logger.info("No result obtained. Using cached history if available.")
+                if os.path.exists(HISTORY_PATH):
+                    with open(HISTORY_PATH, 'r') as f:
+                        history = json.load(f)
+                    
+                    if history:
+                         payload = {
+                            "last_updated": datetime.datetime.now().isoformat(),
+                            "current_race": history[0],
+                            "history": history
+                        }
+                         publish_mqtt(config, payload)
+        
         except Exception as e:
             logger.error(f"Main loop error: {e}")
             
