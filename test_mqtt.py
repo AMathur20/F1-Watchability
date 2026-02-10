@@ -26,7 +26,7 @@ def publish_test():
     }
     
     try:
-        client = mqtt.Client()
+        client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
         if USERNAME:
             client.username_pw_set(USERNAME, PASSWORD)
             
