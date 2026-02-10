@@ -1,27 +1,28 @@
     cards:
+      - type: custom:gap-card
       - type: custom:button-card
         template: f1_container
-        
         custom_fields:
           content:
             card:
               type: vertical-stack
               cards:
                 - type: custom:button-card
-                  name: "F1 Watchability Scores (No Spoilers)"
+                  name: F1 Watchability Scores (No Spoilers)
                   styles:
                     card:
                       - background: none
                       - box-shadow: none
                       - padding-bottom: 25px
+                      - border: none
                     name:
-                      - font-family: "'Formula1-Display-Bold', sans-serif"
+                      - font-family: '''Formula1-Display-Bold'', sans-serif'
                       - font-size: 24px
                       - color: white
                       - text-shadow: 0 0 15px rgba(255,255,255,0.4)
                       - justify-self: center
                 - type: grid
-                  columns: 2
+                  columns: '[[[ return window.innerWidth < 500 ? 1 : 2 ]]]'
                   square: false
                   cards:
                     - type: vertical-stack
@@ -29,29 +30,33 @@
                         - type: custom:button-card
                           entity: sensor.f1_watchability
                           template: f1_race_card_large
-                          variables: { history_index: 0 }
+                          variables:
+                            history_index: 0
                         - type: custom:button-card
                           entity: sensor.f1_watchability
                           template: f1_race_card_large
-                          variables: { history_index: 1 }
+                          variables:
+                            history_index: 1
                     - type: vertical-stack
                       cards:
                         - type: custom:button-card
                           entity: sensor.f1_watchability
                           template: f1_race_card_small
-                          variables: { history_index: 2 }
+                          variables:
+                            history_index: 2
                         - type: custom:button-card
                           entity: sensor.f1_watchability
                           template: f1_race_card_small
-                          variables: { history_index: 3 }
+                          variables:
+                            history_index: 3
                         - type: custom:button-card
                           entity: sensor.f1_watchability
                           template: f1_race_card_small
-                          variables: { history_index: 4 }
+                          variables:
+                            history_index: 4
         styles:
           custom_fields:
             content:
               - width: 100%
-              - max-width: 600px # Adjust this if you want it wider or narrower
+              - max-width: 600px
               - margin: auto
- 

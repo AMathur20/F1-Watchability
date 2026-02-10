@@ -31,5 +31,26 @@ actions:
         🏎️
       data:
         tag: f1-score-update
-    action: notify.mobile_app_XYZ # Replace with your notification service
+    action: notify.mobile_app_ankur
+  - action: notify.send_message
+    entity_id: notify.f1_watchability
+    data:
+      title: "🏁 F1: {{ state_attr('sensor.f1_watchability', 'history')[0].gp }}"
+      message: >
+        {% set h = state_attr('sensor.f1_watchability', 'history')[0] %}
+
+        {% set score = h.score | float %}
+
+        {% if score >= 8 %}
+          {% set emoji = '🟢' %}
+        {% elif score >= 5 %}
+          {% set emoji = '🟡' %}
+        {% else %}
+          {% set emoji = '🔴' %}
+        {% endif %}
+
+        🏎️🚥🏆💨
+
+        The score for the {{ h.gp }} is in!  {{ emoji }} Rating: {{ score }}/10
+        🏎️
 mode: single

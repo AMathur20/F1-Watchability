@@ -69,7 +69,17 @@ Get notified as soon as a new race score is posted! You can use the provided [au
 
 1.  Open [automation.yaml](automation.yaml).
 2.  Copy the content into your Home Assistant `automations.yaml` or create a new Automation via the UI (using YAML mode).
-3.  **Important**: Update the `action` section to point to your specific notification service (e.g., `notify.mobile_app_your_phone`).
+### Notification Services
+
+#### Option 1: Mobile App
+Update the `action` section to point to your specific notification service (e.g., `notify.mobile_app_your_phone`).
+
+#### Option 2: ntfy
+The provided automation is pre-configured to work with [ntfy](https://ntfy.sh/).
+1.  **Add ntfy Integration**: In Home Assistant, go to **Settings > Devices & Services > Add Integration** and search for **ntfy**.
+2.  **Configure Service**: Enter your ntfy server URL (default: `https://ntfy.sh`).
+3.  **Add Topic**: Create a new topic (e.g., `f1-watchability`) and give it a unique name.
+4.  **Update Automation**: In `automation.yaml`, ensure the `entity_id` in the `notify.send_message` action matches your ntfy entity (e.g., `notify.f1_watchability`).
 
 
 ## License

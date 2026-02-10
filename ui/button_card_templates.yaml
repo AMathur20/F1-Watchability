@@ -90,7 +90,7 @@ button_card_templates:
               <path d="M15,75 A35,35 0 0,1 85,75" fill="none" stroke="#222" stroke-width="8" stroke-linecap="round" />
               <path d="M15,75 A35,35 0 0,1 85,75" fill="none" stroke="url(#arcGrad)" stroke-width="10" stroke-linecap="round" 
                     stroke-dasharray="120" stroke-dashoffset="${120 - (120 * s / 10)}" />
-              <text x="50" y="72" text-anchor="middle" fill="white" font-family="'Formula1-Display-Bold'" font-size="24" style="text-shadow: 0 0 10px ${c}">${s}</text>
+              <text x="50" y="72" text-anchor="middle" fill="white" font-family="'Formula1-Display-Bold'" font-size="24" style="text-shadow: 0 0 10px ${c}">${parseFloat(h[i].score).toFixed(1)}</text>
             </svg>`;
         ]]]
       info: |
@@ -119,7 +119,8 @@ button_card_templates:
           var i = variables.history_index;
           var h = entity.attributes.history;
           if (!h || !h[i]) return '';
-          var s = h[i].score;
+          var s = parseFloat(h[i].score).toFixed(1);
+          
           var c = (s >= 8) ? '#00ff41' : (s >= 5) ? '#ffd700' : '#ff1801';
           return `<div style="color:${c}; font-family:'Formula1-Display-Bold'; font-size:26px; text-shadow: 0 0 10px ${c}aa;">${s}</div>`;
         ]]]

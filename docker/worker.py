@@ -60,7 +60,7 @@ def setup_fastf1(cache_dir):
 
 def publish_mqtt(config, payload):
     try:
-        client = mqtt.Client()
+        client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
         if config.get("mqtt_username"):
             client.username_pw_set(config["mqtt_username"], config["mqtt_password"])
         
