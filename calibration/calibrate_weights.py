@@ -267,7 +267,7 @@ def get_telemetry_metrics(session):
         if not total_laps or total_laps == 0:
             total_laps = laps['LapNumber'].max()
         
-        # 1. Weather Volatility
+        # 1. Weather Volatility (Improved: includes compound changes)
         wet_laps = laps[laps['Compound'].isin(['INTERMEDIATE', 'WET'])].shape[0]
         weather_score = (wet_laps / laps.shape[0]) if laps.shape[0] > 0 else 0
         
@@ -314,11 +314,26 @@ def get_telemetry_metrics(session):
         total_pos_change = laps_sorted.loc[valid_transition, 'PosChange'].sum()
         overtakes_proxy = total_pos_change / total_laps
 
+        # 5. Pit Stop Intensity
+        pit_stops = laps['PitInTime'].notna().sum()
+        pit_intensity = pit_stops / total_laps if total_laps > 0 else 0
+
+        # 6. Retirement Rate
+        results = session.results
+        if results is not None and not results.empty:
+            started = len(results)
+            finished = results[results['Status'].str.contains('Finished|\+1 Lap|\+2 Laps|\+3 Laps', case=False, na=False)].shape[0]
+            retirement_rate = (started - finished) / started if started > 0 else 0
+        else:
+            retirement_rate = 0
+
         return {
             "overtakes_per_lap": overtakes_proxy,
             "lead_changes_per_lap": lead_changes_normalized,
             "weather_volatility": weather_score,
-            "safety_car_freq": safety_score
+            "safety_car_freq": safety_score,
+            "pit_stop_intensity": pit_intensity,
+            "retirement_rate": retirement_rate
         }
 
     except Exception as e:
@@ -383,20 +398,28 @@ def main():
                 if "Presse" in gp_name or "Testing" in gp_name:
                     continue
                 
-                # Check if already processed
-                if (year, gp_name) in existing_keys:
-                    logging.info(f"  > Skipping {gp_name} ({year}) - Already in data.")
-                    continue
-                
-                # Find Rating
+                # Find Rating and existing data
                 norm_name = normalize_gp_name(gp_name)
+                existing_row = df_existing[(df_existing['year'] == year) & (df_existing['gp_name'] == gp_name)]
+                
+                # Check if we should skip
+                if not existing_row.empty:
+                    row = existing_row.iloc[0]
+                    # Check if all new metric columns exist and are not null
+                    has_metrics = 'pit_stop_intensity' in row and 'retirement_rate' in row and not pd.isna(row['pit_stop_intensity'])
+                    if has_metrics:
+                        logging.info(f"  > Skipping {gp_name} ({year}) - Already in data and complete.")
+                        continue
+                    else:
+                        logging.info(f"  > {gp_name} ({year}) found in CSV but missing metrics. Backfilling...")
+                
+                # Determine rating: Priority 1: Scraped Map, Priority 2: Existing CSV
                 rating = lookup_map.get((year, norm_name))
+                if rating is None and not existing_row.empty:
+                    rating = existing_row.iloc[0]['rating']
+                    logging.info(f"    Using existing rating from CSV: {rating:.2f}")
                 
                 if rating is None:
-                    # Try fuzzy match or just log warning
-                    # Sometimes names differ: "São Paulo" vs "Sao Paulo"
-                    # Simple fix: try replacing special chars?
-                    # For now just log
                     logging.warning(f"  > No rating found for {gp_name} ({year}). (Normalized: {norm_name})")
                     continue
                 
@@ -440,7 +463,14 @@ def main():
 
     # Regression
     logging.info("Step 3: Calculating Weights...")
-    features = ['overtakes_per_lap', 'lead_changes_per_lap', 'weather_volatility', 'safety_car_freq']
+    features = [
+        'overtakes_per_lap', 
+        'lead_changes_per_lap', 
+        'weather_volatility', 
+        'safety_car_freq',
+        'pit_stop_intensity',
+        'retirement_rate'
+    ]
     X = df_final[features]
     y = df_final['rating']
 
@@ -448,13 +478,15 @@ def main():
     model.fit(X, y)
 
     weights = {
-        "formula_version": "2.0-calibrated",
+        "formula_version": "2.1-calibrated",
         "last_updated": datetime.now().strftime("%Y-%m-%d"),
         "weights": {
             "overtakes_per_lap": round(model.coef_[0], 4),
             "lead_changes": round(model.coef_[1], 4),
             "weather_volatility_index": round(model.coef_[2], 4),
             "safety_car_laps_ratio": round(model.coef_[3], 4),
+            "pit_stop_intensity": round(model.coef_[4], 4),
+            "retirement_rate": round(model.coef_[5], 4),
             "base_score": round(model.intercept_, 4)
         },
         "thresholds": {

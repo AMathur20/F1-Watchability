@@ -1,12 +1,14 @@
 {
-    "formula_version": "2.0-calibrated",
-    "last_updated": "2026-01-30",
+    "formula_version": "2.1-calibrated",
+    "last_updated": "2026-02-11",
     "weights": {
-        "overtakes_per_lap": 0.2403,
-        "lead_changes": 14.3361,
-        "weather_volatility_index": 1.2008,
-        "safety_car_laps_ratio": 4.6055,
-        "base_score": 4.3756
+        "overtakes_per_lap": 0.2159,
+        "lead_changes": 13.9067,
+        "weather_volatility_index": 1.0813,
+        "safety_car_laps_ratio": 4.4347,
+        "pit_stop_intensity": 0.3197,
+        "retirement_rate": -0.0916,
+        "base_score": 4.3143
     },
     "thresholds": {
         "full_race": 8.0,

@@ -145,11 +145,26 @@ def calculate_metrics(session):
         total_pos_change = laps_sorted.loc[valid_transition, 'PosChange'].sum()
         overtakes_proxy = total_pos_change / total_laps
 
+        # 5. Pit Stop Intensity
+        pit_stops = laps['PitInTime'].notna().sum()
+        pit_intensity = pit_stops / total_laps if total_laps > 0 else 0
+
+        # 6. Retirement Rate
+        results = session.results
+        if results is not None and not results.empty:
+            started = len(results)
+            finished = results[results['Status'].str.contains('Finished|\+1 Lap|\+2 Laps|\+3 Laps', case=False, na=False)].shape[0]
+            retirement_rate = (started - finished) / started if started > 0 else 0
+        else:
+            retirement_rate = 0
+
         return {
             "overtakes_per_lap": overtakes_proxy,
             "lead_changes": lead_changes_normalized,
             "weather_volatility_index": weather_score,
-            "safety_car_laps_ratio": safety_score
+            "safety_car_laps_ratio": safety_score,
+            "pit_stop_intensity": pit_intensity,
+            "retirement_rate": retirement_rate
         }
 
     except Exception as e:
@@ -186,6 +201,8 @@ def process_race(year, gp_name, round_num):
             (metrics['lead_changes'] * w.get('lead_changes', 0)) +
             (metrics['weather_volatility_index'] * w.get('weather_volatility_index', 0)) +
             (metrics['safety_car_laps_ratio'] * w.get('safety_car_laps_ratio', 0)) +
+            (metrics['pit_stop_intensity'] * w.get('pit_stop_intensity', 0)) +
+            (metrics['retirement_rate'] * w.get('retirement_rate', 0)) +
             w.get('base_score', 0)
         )
         

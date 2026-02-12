@@ -57,6 +57,7 @@ docker build -t f1-watchability .
 docker run -d \
   -v $(pwd)/config.json:/app/config.json \
   -v $(pwd)/f1_cache:/app/f1_cache \
+  -v $(pwd)/weights.json:/app/weights.json \
   f1-watchability
 ```
 
