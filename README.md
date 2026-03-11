@@ -4,14 +4,14 @@ An open-source tool for Home Assistant to calculate and display a spoiler-free "
 
 ## Overview
 
-This system helps you decide whether to watch a full race, a condensed version, or just the highlights, based on objective telemetry data correlated with historical fan sentiment.
+This system helps you decide whether to watch a full race, a condensed version, or just the highlights, based on objective telemetry data correlated with historical fan sentiment. It fully supports calculating watchability for both **Grand Prix** and **Sprint** race sessions.
 
 The project is divided into three components:
 
 1.  **Calibration** (`/calibration`):
-    -   Scrapes historical fan ratings.
-    -   Analyzes race telemetry (FastF1).
-    -   Generates a weighted model (`weights.json`).
+    -   Automated scraping of F1 Hot or Not ratings for Grand Prix and Sprint sessions.
+    -   Analyzes race telemetry via FastF1.
+    -   Generates tailored, weighted models (`weights.json`) for both race formats.
 
 2.  **Inference** (`/docker`):
     -   Standalone Docker container.

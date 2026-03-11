@@ -12,7 +12,14 @@ import logging
 from datetime import datetime
 
 # Setup logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+log_format = '%(asctime)s - %(levelname)s - %(message)s'
+logging.basicConfig(level=logging.INFO, format=log_format)
+
+import logging
+warning_handler = logging.FileHandler('calibration_warnings.log')
+warning_handler.setLevel(logging.WARNING)
+warning_handler.setFormatter(logging.Formatter(log_format))
+logging.getLogger().addHandler(warning_handler)
 
 # Constants
 CACHE_DIR = os.path.join(os.getcwd(), 'cache')
@@ -96,161 +103,82 @@ def safe_request_html(url, cache_key):
     logging.error(f"Failed to fetch {url} after retries.")
     return None
 
-class RaceFansScraper:
-    BASE_URL = "https://www.racefans.net/category/regular-features/rate-the-race/page/{}/"
-    
+class F1HotOrNotScraper:
+    API_URL = "https://api.f1hotornot.com/v0/races"
+
     def __init__(self):
         pass
 
     def get_all_ratings(self, years):
         """
-        Scrape all ratings for the specified years by iterating category pages.
+        Scrape all ratings for the specified years from F1HotOrNot
         Returns a dictionary: {(year, gp_name_normalized): rating}
         """
         ratings_map = {}
         target_years = set(years)
-        min_year = min(target_years)
-        
+        limit = 50
         page = 1
-        found_older_year = False
         
-        while not found_older_year:
-            logging.info(f"Scraping Rate the Race Category - Page {page}")
-            url = self.BASE_URL.format(page)
-            html = safe_request_html(url, f"category_page_{page}")
-            
-            if not html:
-                break
+        while True:
+            logging.info(f"Scraping F1HotOrNot - Page {page}")
+            url = f"{self.API_URL}?page={page}&limit={limit}&sport=F1"
+            import math
+            try:
+                response = requests.get(url, timeout=10)
+                if response.status_code != 200:
+                    logging.error(f"Failed to fetch page {page}: Status {response.status_code}")
+                    break
                 
-            soup = BeautifulSoup(html, 'lxml')
-            articles = soup.find_all('article')
-            
-            if not articles:
-                logging.info("No articles found on this page. Stopping.")
-                break
+                data = response.json()
+                races = data.get("races", [])
                 
-            page_has_relevant_year = False
-            
-            for article in articles:
-                title_tag = article.find('h2', class_='entry-title')
-                if not title_tag:
-                    continue
-                
-                link_tag = title_tag.find('a')
-                if not link_tag:
-                    continue
+                if not races:
+                    break
                     
-                title = link_tag.get_text().strip()
-                link = link_tag['href']
-                
-                # Title format: "Rate the race: [Year] [Grand Prix Name]"
-                # Regex to extract year
-                match = re.search(r'Rate the race:\s*(\d{4})\s*(.*)', title, re.IGNORECASE)
-                if match:
-                    year = int(match.group(1))
-                    gp_name_raw = match.group(2).strip() # "Abu Dhabi Grand Prix"
-                    
-                    if year < min_year:
-                        # Found an article older than we care about
-                        # But wait, page might have mixed years (Jan 2025 and Dec 2024)?
-                        # Yes, but if we see e.g. 2021 and we only want 2024+, we can probably stop soon.
-                        # To be safe, we just mark found_older_year if it's significantly older?
-                        # Or just ignore it.
-                        pass
-                    
-                    if year in target_years:
-                        page_has_relevant_year = True
-                        logging.info(f"Found Race: {title} ({link})")
+                for race in races:
+                    year = race.get("season_year")
+                    if year not in target_years:
+                        continue
                         
-                        # Fetch the rating from the article
-                        rating = self._scrape_poll_rating(link, year, gp_name_raw)
-                        if rating is not None:
-                            # Normalize GP Name for mapping
-                            # FastF1 often uses "Abu Dhabi Grand Prix" or similar.
-                            # We'll use a simplified key: (year, gp_name_raw)
-                            # Ideally we match loosely later.
-                            ratings_map[(year, gp_name_raw)] = rating
-            
-            # Optimization: If the whole page only has years older than min_year, stop.
-            # But simpler logic: iterate until we see a year < min_year - 1 ensuring we are safely past?
-            # Or just check logical stopping.
-            # For now, let's limit page depth for safety (e.g. 50 pages is ~500 races, plenty for multiple years)
-            if page > 50:
-                break
-            
-            # Heuristic: If we found years < min_year, we might be done.
-            # Check the LAST article on page.
-            last_article_title = articles[-1].find('h2', class_='entry-title').get_text()
-            last_match = re.search(r'Rate the race:\s*(\d{4})', last_article_title)
-            if last_match and int(last_match.group(1)) < min_year:
-                logging.info(f"reached year {last_match.group(1)} < {min_year}, stopping.")
-                found_older_year = True
-                
-            page += 1
-            
-        return ratings_map
-
-    def _scrape_poll_rating(self, url, year, gp_name):
-        """Extract rating from individual race page."""
-        # Cache key based on URL hash or simplified name
-        cache_key = f"poll_{year}_{gp_name.replace(' ', '_')}"
-        html = safe_request_html(url, cache_key)
-        
-        if not html:
-            return None
-            
-        soup = BeautifulSoup(html, 'lxml')
-        
-        # Look for wp-polls container
-        # Pattern: div with id starting with polls- and ending with -ans
-        poll_container = soup.find('div', id=re.compile(r'polls-\d+-ans'))
-        
-        if not poll_container:
-            # logging.warning(f"No poll container found for {year} {gp_name}")
-            return None
-            
-        vote_data = []
-        
-        for li in poll_container.find_all('li'):
-            text = li.get_text(strip=True)
-            # Regex to extract Score and Percentage
-            # Matches: "10(4%)" or "10 (4%)"
-            # Some formats might be slightly different
-            match = re.match(r'^(\d+)\s*\((\d+)%\)', text)
-            if not match:
-                # Try fallback: find small tag
-                score_node = li.contents[0] if li.contents else None
-                small_node = li.find('small')
-                if score_node and small_node:
+                    raw_name = race.get("race_name")
+                    is_sprint = race.get("is_sprint", False)
+                    summary_str = race.get("race_summary")
+                    
+                    if not summary_str:
+                        continue
+                        
                     try:
-                        score_text = str(score_node).strip()
-                        if score_text.isdigit():
-                            score = int(score_text)
-                            percent_text = small_node.get_text(strip=True).replace('(', '').replace('%)', '').replace('%', '')
-                            percent = int(percent_text)
-                            vote_data.append((score, percent))
-                            continue
-                    except ValueError:
-                        pass
-                continue
+                        summary_data = json.loads(summary_str)
+                        avg = summary_data.get("avg")
+                        if avg is not None:
+                            normalized_score = (avg + 2) * 2.5
+                            
+                            # Clean up old F1HotOrNot suffixes
+                            import re
+                            name = re.sub(r'\s+-\s+(Race|Sprint Qualifying|Sprint)', '', raw_name)
+                            name = name.replace(" GP", " Grand Prix")
+                            
+                            if "Emilia Romagna" in name or "Emilia-Romagna" in name:
+                                name = "Emilia Romagna Grand Prix"
+                            elif "São Paulo" in name:
+                                name = "Sao Paulo Grand Prix"
+                                
+                            if is_sprint:
+                                name += " Sprint"
+                                
+                            ratings_map[(year, name)] = normalized_score
+                    except Exception as e:
+                        logging.warning(f"Failed to extract score for {year} {raw_name}: {e}")
                 
-            score = int(match.group(1))
-            percent = int(match.group(2))
-            vote_data.append((score, percent))
-            
-        if not vote_data:
-            return None
-            
-        # Calculate Weighted Average
-        weighted_sum = sum(score * percent for score, percent in vote_data)
-        total_percent_sum = sum(percent for _, percent in vote_data)
-        
-        if total_percent_sum == 0:
-            return 0
-            
-        final_rating = weighted_sum / total_percent_sum
-        # logging.info(f"  > Scraped Rating for {gp_name}: {final_rating:.2f}")
-        return final_rating
+                total_pages = math.ceil(data.get("total", 0) / limit)
+                if page >= total_pages:
+                    break
+                page += 1
+            except Exception as e:
+                logging.error(f"Error fetching page {page}: {e}")
+                break
+                
+        return ratings_map
 
 def get_telemetry_metrics(session):
     """
@@ -360,13 +288,14 @@ def main():
     
     if not df_existing.empty:
         # Key: (Year, GP Name normalized)
+        df_existing['year'] = df_existing['year'].astype(int) # Ensure year is int
         existing_keys = set(zip(df_existing['year'], df_existing['gp_name']))
     else:
         existing_keys = set()
     
     # 1. Scrape Ratings FIRST (Batch)
-    logging.info("Step 1: Scraping Ratings from RaceFans...")
-    scraper = RaceFansScraper()
+    logging.info("Step 1: Scraping Ratings from F1HotOrNot...")
+    scraper = F1HotOrNotScraper()
     ratings_map = scraper.get_all_ratings(years)
     logging.info(f"Found ratings for {len(ratings_map)} races.")
     
@@ -400,24 +329,46 @@ def main():
                 
                 # Find Rating and existing data
                 norm_name = normalize_gp_name(gp_name)
-                existing_row = df_existing[(df_existing['year'] == year) & (df_existing['gp_name'] == gp_name)]
                 
-                # Check if we should skip
+                if not df_existing.empty and 'year' in df_existing.columns and 'gp_name' in df_existing.columns:
+                    existing_row = df_existing[(df_existing['year'] == year) & (df_existing['gp_name'] == gp_name)]
+                else:
+                    existing_row = pd.DataFrame()
+                
+                # Check if we should skip GP
+                skip_gp = False
                 if not existing_row.empty:
                     row = existing_row.iloc[0]
                     # Check if all new metric columns exist and are not null
                     has_metrics = 'pit_stop_intensity' in row and 'retirement_rate' in row and not pd.isna(row['pit_stop_intensity'])
                     if has_metrics:
-                        logging.info(f"  > Skipping {gp_name} ({year}) - Already in data and complete.")
-                        continue
+                        skip_gp = True
                     else:
-                        logging.info(f"  > {gp_name} ({year}) found in CSV but missing metrics. Backfilling...")
+                        logging.info(f"  > {gp_name} ({year}) gp found in CSV but missing metrics. Backfilling...")
+                
+                # Check Sprint
+                sprint_name = f"{gp_name} Sprint"
+                if not df_existing.empty and 'year' in df_existing.columns and 'gp_name' in df_existing.columns:
+                    existing_sprint = df_existing[(df_existing['year'] == year) & (df_existing['gp_name'] == sprint_name)]
+                else:
+                    existing_sprint = pd.DataFrame()
+                
+                skip_sprint = (not existing_sprint.empty)
+                
+                if skip_gp and skip_sprint:
+                    logging.info(f"  > Skipping {gp_name} ({year}) - GP and Sprint already in data.")
+                    continue
                 
                 # Determine rating: Priority 1: Scraped Map, Priority 2: Existing CSV
                 rating = lookup_map.get((year, norm_name))
                 if rating is None and not existing_row.empty:
                     rating = existing_row.iloc[0]['rating']
                     logging.info(f"    Using existing rating from CSV: {rating:.2f}")
+                    
+                sprint_norm_name = normalize_gp_name(sprint_name)
+                sprint_rating = lookup_map.get((year, sprint_norm_name))
+                if sprint_rating is None and not existing_sprint.empty:
+                    sprint_rating = existing_sprint.iloc[0]['rating']
                 
                 if rating is None:
                     logging.warning(f"  > No rating found for {gp_name} ({year}). (Normalized: {norm_name})")
@@ -427,26 +378,51 @@ def main():
                 
                 # Get Telemetry
                 try:
-                    # We utilize the event name or round number?
-                    # fastf1.get_session(year, gp_name, 'R') works well usually.
-                    session = fastf1.get_session(year, gp_name, 'R')
-                    metrics = get_telemetry_metrics(session)
-                    
-                    if metrics:
-                        metrics['rating'] = rating
-                        metrics['gp_name'] = gp_name
-                        metrics['year'] = year
-                        new_data.append(metrics)
-                        logging.info(f"    Added data: {metrics}")
+                    if not skip_gp:
+                        # R Session
+                        session_r = fastf1.get_session(year, gp_name, 'R')
+                        metrics_r = get_telemetry_metrics(session_r)
                         
-                        # Save incrementally
-                        temp_df = pd.DataFrame(new_data)
-                        if not df_existing.empty:
-                            temp_combined = pd.concat([df_existing, temp_df], ignore_index=True)
-                        else:
-                            temp_combined = temp_df
-                        temp_combined.drop_duplicates(subset=['year', 'gp_name'], keep='last', inplace=True)
-                        temp_combined.to_csv(DATA_FILE, index=False)
+                        if metrics_r:
+                            metrics_r['rating'] = rating
+                            metrics_r['gp_name'] = gp_name
+                            metrics_r['year'] = year
+                            new_data.append(metrics_r)
+                            logging.info(f"    Added Race data: {metrics_r}")
+                            
+                            # Save incrementally
+                            temp_df = pd.DataFrame(new_data)
+                            if not df_existing.empty:
+                                temp_combined = pd.concat([df_existing, temp_df], ignore_index=True)
+                            else:
+                                temp_combined = temp_df
+                            temp_combined.drop_duplicates(subset=['year', 'gp_name'], keep='last', inplace=True)
+                            temp_combined.to_csv(DATA_FILE, index=False)
+
+                    if not skip_sprint:
+                        # Sprint Session
+                        try:
+                            session_s = fastf1.get_session(year, gp_name, 'Sprint')
+                            metrics_s = get_telemetry_metrics(session_s)
+                            if metrics_s:
+                                # Apply specific sprint rating if available
+                                s_rating = sprint_rating if sprint_rating is not None else rating
+                                metrics_s['rating'] = s_rating
+                                metrics_s['gp_name'] = f"{gp_name} Sprint"
+                                metrics_s['year'] = year
+                                new_data.append(metrics_s)
+                                logging.info(f"    Added Sprint data: {metrics_s}")
+                                
+                                temp_df = pd.DataFrame(new_data)
+                                if not df_existing.empty:
+                                    temp_combined = pd.concat([df_existing, temp_df], ignore_index=True)
+                                else:
+                                    temp_combined = temp_df
+                                temp_combined.drop_duplicates(subset=['year', 'gp_name'], keep='last', inplace=True)
+                                temp_combined.to_csv(DATA_FILE, index=False)
+                        except Exception as e:
+                            if 'ValueError' not in str(type(e)) and 'Not Found' not in str(e):
+                                logging.debug(f"    No sprint session found for {gp_name}: {e}")
 
                 except Exception as e:
                     logging.error(f"    Failed to get session for {gp_name}: {e}")
@@ -461,8 +437,16 @@ def main():
         logging.error("Not enough data points for regression (need at least 5). Aborting.")
         return
 
-    # Regression
-    logging.info("Step 3: Calculating Weights...")
+    # Separate Data
+    df_race = df_final[~df_final['gp_name'].str.contains('Sprint')]
+    df_sprint = df_final[df_final['gp_name'].str.contains('Sprint')]
+    
+    if len(df_race) < 5:
+        logging.error("Not enough RACE data points for regression (need at least 5). Aborting.")
+        return
+
+    # Regression - Main Race
+    logging.info("Step 3: Calculating Race Weights...")
     features = [
         'overtakes_per_lap', 
         'lead_changes_per_lap', 
@@ -471,23 +455,23 @@ def main():
         'pit_stop_intensity',
         'retirement_rate'
     ]
-    X = df_final[features]
-    y = df_final['rating']
+    X_race = df_race[features]
+    y_race = df_race['rating']
 
-    model = LinearRegression()
-    model.fit(X, y)
+    model_race = LinearRegression()
+    model_race.fit(X_race, y_race)
 
     weights = {
-        "formula_version": "2.1-calibrated",
+        "formula_version": "3.0",
         "last_updated": datetime.now().strftime("%Y-%m-%d"),
         "weights": {
-            "overtakes_per_lap": round(model.coef_[0], 4),
-            "lead_changes": round(model.coef_[1], 4),
-            "weather_volatility_index": round(model.coef_[2], 4),
-            "safety_car_laps_ratio": round(model.coef_[3], 4),
-            "pit_stop_intensity": round(model.coef_[4], 4),
-            "retirement_rate": round(model.coef_[5], 4),
-            "base_score": round(model.intercept_, 4)
+            "overtakes_per_lap": round(model_race.coef_[0], 4),
+            "lead_changes": round(model_race.coef_[1], 4),
+            "weather_volatility_index": round(model_race.coef_[2], 4),
+            "safety_car_laps_ratio": round(model_race.coef_[3], 4),
+            "pit_stop_intensity": round(model_race.coef_[4], 4),
+            "retirement_rate": round(model_race.coef_[5], 4),
+            "base_score": round(model_race.intercept_, 4)
         },
         "thresholds": {
              "full_race": 8.0,
@@ -496,15 +480,38 @@ def main():
         },
         "metadata": {
             "normalization_factor": "total_laps",
-            "description": f"Calibrated on {len(df_final)} races."
+            "description": f"Calibrated on {len(df_race)} GP races and {len(df_sprint)} Sprint races."
         }
     }
+
+    # Regression - Sprint
+    if len(df_sprint) >= 5:
+        logging.info("Step 4: Calculating Sprint Weights...")
+        X_sprint = df_sprint[features]
+        y_sprint = df_sprint['rating']
+        
+        model_sprint = LinearRegression()
+        model_sprint.fit(X_sprint, y_sprint)
+        
+        weights["sprint_weights"] = {
+            "overtakes_per_lap": round(model_sprint.coef_[0], 4),
+            "lead_changes": round(model_sprint.coef_[1], 4),
+            "weather_volatility_index": round(model_sprint.coef_[2], 4),
+            "safety_car_laps_ratio": round(model_sprint.coef_[3], 4),
+            "pit_stop_intensity": round(model_sprint.coef_[4], 4),
+            "retirement_rate": round(model_sprint.coef_[5], 4),
+            "base_score": round(model_sprint.intercept_, 4)
+        }
+    else:
+        logging.warning(f"Not enough SPRINT data points for regression ({len(df_sprint)}). Falling back to race weights.")
+        weights["sprint_weights"] = weights["weights"]
 
     with open(WEIGHTS_FILE, 'w') as f:
         json.dump(weights, f, indent=4)
     
     logging.info("Calibration complete. Weights saved to weights.json")
-    logging.info(f"Weights: {weights['weights']}")
+    logging.info(f"GP Weights: {weights['weights']}")
+    logging.info(f"Sprint Weights: {weights['sprint_weights']}")
 
 if __name__ == "__main__":
     main()

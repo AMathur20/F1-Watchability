@@ -1,14 +1,14 @@
 {
-    "formula_version": "2.1-calibrated",
-    "last_updated": "2026-02-11",
+    "formula_version": "3.0",
+    "last_updated": "2026-03-10",
     "weights": {
-        "overtakes_per_lap": 0.2159,
-        "lead_changes": 13.9067,
-        "weather_volatility_index": 1.0813,
-        "safety_car_laps_ratio": 4.4347,
-        "pit_stop_intensity": 0.3197,
-        "retirement_rate": -0.0916,
-        "base_score": 4.3143
+        "overtakes_per_lap": 0.4307,
+        "lead_changes": 20.0471,
+        "weather_volatility_index": 1.7704,
+        "safety_car_laps_ratio": 6.4079,
+        "pit_stop_intensity": 0.5913,
+        "retirement_rate": 0.3274,
+        "base_score": 3.1306
     },
     "thresholds": {
         "full_race": 8.0,
@@ -17,6 +17,15 @@
     },
     "metadata": {
         "normalization_factor": "total_laps",
-        "description": "Calibrated on 82 races."
+        "description": "Calibrated on 172 GP races and 22 Sprint races."
+    },
+    "sprint_weights": {
+        "overtakes_per_lap": 0.4904,
+        "lead_changes": -16.5735,
+        "weather_volatility_index": -1.6856,
+        "safety_car_laps_ratio": 5.2004,
+        "pit_stop_intensity": 0.8186,
+        "retirement_rate": -8.5691,
+        "base_score": 5.6155
     }
 }

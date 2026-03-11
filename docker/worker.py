@@ -173,66 +173,114 @@ def calculate_metrics(session):
 
 def process_race(year, gp_name, round_num):
     """
-    Fetch and score a specific race.
+    Fetch and score a specific race (and Sprint, if applicable).
+    Returns a list of result dictionaries.
     """
+    results = []
+    
     try:
-        logger.info(f"Analyzing {year} {gp_name} (Round {round_num})...")
-        session = fastf1.get_session(year, round_num, 'R')
-        metrics = calculate_metrics(session)
-        
-        if not metrics:
-            logger.warning("Could not calculate metrics.")
-            return None
-            
         # Load Weights
         if not os.path.exists(WEIGHTS_PATH):
             logger.error(f"Weights file not found at {WEIGHTS_PATH}")
-            return None
+            return []
             
         with open(WEIGHTS_PATH, 'r') as f:
             weights_data = json.load(f)
             
         w = weights_data.get('weights', {})
         t = weights_data.get('thresholds', {})
+        sw = weights_data.get('sprint_weights', w) # Fallback to standard weights
+
+        # Process Main Race ('R')
+        logger.info(f"Analyzing {year} {gp_name} (Round {round_num})...")
+        session = fastf1.get_session(year, round_num, 'R')
+        metrics = calculate_metrics(session)
         
-        # Calculate Score
-        score = (
-            (metrics['overtakes_per_lap'] * w.get('overtakes_per_lap', 0)) +
-            (metrics['lead_changes'] * w.get('lead_changes', 0)) +
-            (metrics['weather_volatility_index'] * w.get('weather_volatility_index', 0)) +
-            (metrics['safety_car_laps_ratio'] * w.get('safety_car_laps_ratio', 0)) +
-            (metrics['pit_stop_intensity'] * w.get('pit_stop_intensity', 0)) +
-            (metrics['retirement_rate'] * w.get('retirement_rate', 0)) +
-            w.get('base_score', 0)
-        )
-        
-        score = max(0, min(10, score))
-        score = round(score, 1)
-        
-        # Determine Icon/Recommendation
-        icon = "📺"
-        recommendation = "Watch Highlights"
-        if score >= t.get('full_race', 8.0):
-            icon = "🏎️"
-            recommendation = "Watch Full Race"
-        elif score >= t.get('race_in_30', 5.0):
-            icon = "⏱️"
-            recommendation = "Watch Race in 30"
+        if metrics:
+            score = (
+                (metrics['overtakes_per_lap'] * w.get('overtakes_per_lap', 0)) +
+                (metrics['lead_changes'] * w.get('lead_changes', 0)) +
+                (metrics['weather_volatility_index'] * w.get('weather_volatility_index', 0)) +
+                (metrics['safety_car_laps_ratio'] * w.get('safety_car_laps_ratio', 0)) +
+                (metrics['pit_stop_intensity'] * w.get('pit_stop_intensity', 0)) +
+                (metrics['retirement_rate'] * w.get('retirement_rate', 0)) +
+                w.get('base_score', 0)
+            )
             
-        result = {
-            "gp": gp_name,
-            "score": score,
-            "icon": icon,
-            "recommendation": recommendation,
-            "date": session.date.strftime("%Y-%m-%d"),
-            "round": round_num,
-            "metrics": metrics
-        }
-        return result
+            score = max(0, min(10, score))
+            score = round(score, 1)
+            
+            icon = "📺"
+            recommendation = "Watch Highlights"
+            if score >= t.get('full_race', 8.0):
+                icon = "🏎️"
+                recommendation = "Watch Full Race"
+            elif score >= t.get('race_in_30', 5.0):
+                icon = "⏱️"
+                recommendation = "Watch Race in 30"
+                
+            results.append({
+                "gp": gp_name,
+                "score": score,
+                "icon": icon,
+                "recommendation": recommendation,
+                "date": session.date.strftime("%Y-%m-%d"),
+                "round": round_num,
+                "metrics": metrics
+            })
+        else:
+             logger.warning(f"Could not calculate metrics for {year} {gp_name} Race.")
+
+        # Process Sprint ('S')
+        try:
+             sprint_session = fastf1.get_session(year, round_num, 'Sprint')
+             # FastF1 raises exception if session doesn't exist, but if it exists we process it
+             logger.info(f"Analyzing Sprint for {year} {gp_name} (Round {round_num})...")
+             sprint_metrics = calculate_metrics(sprint_session)
+             
+             if sprint_metrics:
+                 s_score = (
+                     (sprint_metrics['overtakes_per_lap'] * sw.get('overtakes_per_lap', 0)) +
+                     (sprint_metrics['lead_changes'] * sw.get('lead_changes', 0)) +
+                     (sprint_metrics['weather_volatility_index'] * sw.get('weather_volatility_index', 0)) +
+                     (sprint_metrics['safety_car_laps_ratio'] * sw.get('safety_car_laps_ratio', 0)) +
+                     (sprint_metrics['pit_stop_intensity'] * sw.get('pit_stop_intensity', 0)) +
+                     (sprint_metrics['retirement_rate'] * sw.get('retirement_rate', 0)) +
+                     sw.get('base_score', 0)
+                 )
+                 
+                 s_score = max(0, min(10, s_score))
+                 s_score = round(s_score, 1)
+                 
+                 sprint_icon = "📺"
+                 sprint_recommendation = "Watch Highlights"
+                 if s_score >= t.get('full_race', 8.0):
+                     sprint_icon = "🏎️"
+                     sprint_recommendation = "Watch Full Race"
+                 elif s_score >= t.get('race_in_30', 5.0):
+                     sprint_icon = "⏱️"
+                     sprint_recommendation = "Watch Race in 30"
+                     
+                 results.append({
+                     "gp": f"{gp_name} Sprint",
+                     "score": s_score,
+                     "icon": sprint_icon,
+                     "recommendation": sprint_recommendation,
+                     "date": sprint_session.date.strftime("%Y-%m-%d"),
+                     "round": round_num,
+                     "metrics": sprint_metrics
+                 })
+             else:
+                  logger.warning(f"Could not calculate sprint metrics for {year} {gp_name}.")
+        except Exception as e:
+             if 'ValueError' not in str(type(e)) and 'Not Found' not in str(e): # Hack for older fastf1 versions rejecting 'Sprint'
+                 logger.debug(f"No sprint found for {gp_name}: {e}")
+        
+        return results
         
     except Exception as e:
         logger.error(f"Error processing race {year} {gp_name}: {e}")
-        return None
+        return results
 
 def fetch_recent_races(config, limit=5):
     """
@@ -270,11 +318,13 @@ def fetch_recent_races(config, limit=5):
         gp_name = row['EventName']
         round_num = int(row['RoundNumber'])
         
-        res = process_race(year, gp_name, round_num)
-        if res:
-            results.append(res)
+        batch_results = process_race(year, gp_name, round_num)
+        if batch_results:
+            results.extend(batch_results)
             
-    return results
+    # Re-sort by date in case sprint is out of order
+    results.sort(key=lambda x: x['date'], reverse=True)
+    return results[:limit]
 
 def update_history(new_results):
     """
