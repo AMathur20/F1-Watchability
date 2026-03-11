@@ -36,7 +36,8 @@ DEFAULT_CONFIG = {
     "mqtt_username": "",
     "mqtt_password": "",
     "check_interval_seconds": 3600,
-    "fastf1_cache_dir": CACHE_DIR
+    "fastf1_cache_dir": CACHE_DIR,
+    "timezone": "UTC"
 }
 
 def load_config():
@@ -59,6 +60,7 @@ def load_config():
     if os.getenv("MQTT_USERNAME"): config["mqtt_username"] = os.getenv("MQTT_USERNAME")
     if os.getenv("MQTT_PASSWORD"): config["mqtt_password"] = os.getenv("MQTT_PASSWORD")
     if os.getenv("CHECK_INTERVAL"): config["check_interval_seconds"] = int(os.getenv("CHECK_INTERVAL"))
+    if os.getenv("TZ"): config["timezone"] = os.getenv("TZ")
     
     return config
 
@@ -364,6 +366,18 @@ def update_history(new_results):
 def main():
     logger.info("Starting F1 Watchability Worker...")
     config = load_config()
+    
+    # Set timezone for the process if provided
+    if config.get("timezone"):
+        os.environ["TZ"] = config["timezone"]
+        try:
+            time.tzset()
+            logger.info(f"Timezone set to {config['timezone']}")
+        except AttributeError:
+            # tzset is only available on Unix
+            pass
+            
+    logger.info(f"Current local time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}")
     
     # Initial Check: Do we have history?
     existing_history = []

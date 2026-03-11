@@ -18,6 +18,7 @@ services:
       - MQTT_USERNAME=your_username
       - MQTT_PASSWORD=your_password
       - CHECK_INTERVAL=3600
+      - TZ=UTC
 
 volumes:
   f1_cache:

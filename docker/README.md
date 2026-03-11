@@ -19,11 +19,13 @@ This service runs the F1 Watchability inference engine in a standalone Docker co
         "mqtt_username": "user",
         "mqtt_password": "password",
         "check_interval_seconds": 3600,
-        "fastf1_cache_dir": "/app/f1_cache"
+        "fastf1_cache_dir": "/app/f1_cache",
+        "timezone": "Europe/London"
     }
     ```
 
 2.  **Weights**: Ensure `weights.json` is present. It is usually copied from the Calibration step or included in the build.
+3.  **Timezone**: The worker uses the `TZ` environment variable or the `"timezone"` key in `config.json` to localize timestamps.
 
 ## Running
 
@@ -43,6 +45,7 @@ docker-compose up -d --build
 
 2.  **Environment Variables**:
     -   You can define `MQTT_BROKER`, `MQTT_USERNAME`, etc., directly in the stack environment variables section.
+    -   **Timezone**: Add a `TZ` environment variable (e.g., `TZ=America/New_York`) to ensure the container uses your local time.
 
 3.  **Persistence**:
     -   The stack uses named volumes `f1_cache` and `f1_history` to keep data safe across restarts.
