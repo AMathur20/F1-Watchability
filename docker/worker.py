@@ -286,7 +286,7 @@ def process_race(year, gp_name, round_num):
 
 def fetch_recent_races(config, limit=5):
     """
-    Fetch the last N races.
+    Fetch the last N races, spanning across year boundaries if necessary.
     """
     # Silence FastF1
     logging.getLogger('fastf1').setLevel(logging.WARNING)
@@ -294,37 +294,46 @@ def fetch_recent_races(config, limit=5):
     
     now = datetime.datetime.now()
     year = now.year
-    
-    # Get schedule
-    schedule = fastf1.get_event_schedule(year)
-    past_races = schedule[schedule['EventDate'] < now]
-    
-    # Fallback to previous year if empty
-    if past_races.empty:
-        logger.info(f"No past races for {year}, checking {year-1}...")
-        year -= 1
-        schedule = fastf1.get_event_schedule(year)
-        past_races = schedule[schedule['EventDate'] < now]
-    
-    # If still empty (very rare), return empty
-    if past_races.empty:
-        logger.warning("No past races found.")
-        return []
-    
-    # Take last N
-    targets = past_races.tail(limit)
     results = []
     
-    # Iterate in reverse (newest first)
-    for idx, row in targets.iloc[::-1].iterrows():
-        gp_name = row['EventName']
-        round_num = int(row['RoundNumber'])
-        
-        batch_results = process_race(year, gp_name, round_num)
-        if batch_results:
-            results.extend(batch_results)
+    while len(results) < limit and year > 2000: # Safety cap
+        logger.info(f"Fetching races for schedule year {year}...")
+        try:
+            schedule = fastf1.get_event_schedule(year)
+            # Filter for completed events excluding testing
+            past_events = schedule[
+                (schedule['EventDate'] < now) & 
+                (~schedule['EventName'].str.contains('Testing|Presse', case=False, na=False))
+            ]
             
-    # Re-sort by date in case sprint is out of order
+            if past_events.empty:
+                year -= 1
+                continue
+            
+            # Iterate in reverse (newest first)
+            for _, row in past_events.iloc[::-1].iterrows():
+                gp_name = row['EventName']
+                round_num = int(row['RoundNumber'])
+                
+                batch_results = process_race(year, gp_name, round_num)
+                if batch_results:
+                    # process_race returns newest session first (Race, then Sprint usually)
+                    # We want to add them and check if we hit the limit
+                    for res in batch_results:
+                        results.append(res)
+                        if len(results) >= limit:
+                            break
+                
+                if len(results) >= limit:
+                    break
+            
+            year -= 1 # Next iteration checks previous year
+            
+        except Exception as e:
+            logger.error(f"Error fetching schedule for {year}: {e}")
+            year -= 1
+            
+    # Final sort (though they should be mostly in order)
     results.sort(key=lambda x: x['date'], reverse=True)
     return results[:limit]
 
