@@ -12,6 +12,7 @@ mqtt:
           "date": "{{ value_json.current_race.date }}",
           "metrics": {{ value_json.current_race.metrics | tojson }},
           "history": {{ value_json.history | tojson }},
+          "next_race": {{ value_json.next_race | default('null') | tojson }},
           "last_updated": "{{ value_json.last_updated }}"
         }
       icon: "mdi:formula1"

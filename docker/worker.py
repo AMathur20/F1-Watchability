@@ -337,6 +337,52 @@ def fetch_recent_races(config, limit=5):
     results.sort(key=lambda x: x['date'], reverse=True)
     return results[:limit]
 
+def fetch_next_race(config):
+    """
+    Fetch the next upcoming race.
+    """
+    # Silence FastF1
+    logging.getLogger('fastf1').setLevel(logging.WARNING)
+    setup_fastf1(config['fastf1_cache_dir'])
+    
+    now = datetime.datetime.now()
+    year = now.year
+    
+    try:
+        schedule = fastf1.get_event_schedule(year)
+        # Filter for future events excluding testing
+        future_events = schedule[
+            (schedule['EventDate'] >= now) & 
+            (~schedule['EventName'].str.contains('Testing|Presse', case=False, na=False))
+        ]
+        
+        if future_events.empty:
+            year += 1
+            schedule = fastf1.get_event_schedule(year)
+            future_events = schedule[
+                (schedule['EventDate'] >= now) & 
+                (~schedule['EventName'].str.contains('Testing|Presse', case=False, na=False))
+            ]
+            
+        if not future_events.empty:
+            next_event = future_events.iloc[0]
+            
+            # Try to get Session5Date (Race), fallback to EventDate
+            race_date = next_event['EventDate']
+            if 'Session5Date' in next_event and not pd.isnull(next_event['Session5Date']):
+                race_date = next_event['Session5Date']
+                
+            return {
+                "gp_name": next_event['EventName'],
+                "round": int(next_event['RoundNumber']),
+                "date": next_event['EventDate'].isoformat() if not pd.isnull(next_event['EventDate']) else None,
+                "race_date": race_date.isoformat() if not pd.isnull(race_date) else None
+            }
+    except Exception as e:
+        logger.error(f"Error fetching next race for {year}: {e}")
+        
+    return None
+
 def update_history(new_results):
     """
     Merge new results into history.
@@ -389,27 +435,29 @@ def main():
     logger.info(f"Current local time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}")
     
     # Initial Check: Do we have history?
-    existing_history = []
+    history = []
     if os.path.exists(HISTORY_PATH):
         try:
             with open(HISTORY_PATH, 'r') as f:
-                existing_history = json.load(f)
+                history = json.load(f)
         except:
             pass
             
-    if len(existing_history) < 5:
-        logger.info(f"History has {len(existing_history)} items. Fetching recent races to fill...")
+    if len(history) < 5:
+        logger.info(f"History has {len(history)} items. Fetching recent races to fill...")
         new_results = fetch_recent_races(config, limit=5)
         history = update_history(new_results)
         
-        # Publish init
-        if history:
-             payload = {
-                "last_updated": datetime.datetime.now().isoformat(),
-                "current_race": history[0],
-                "history": history
-            }
-             publish_mqtt(config, payload)
+    # Publish init
+    if history:
+         next_race = fetch_next_race(config)
+         payload = {
+            "last_updated": datetime.datetime.now().isoformat(),
+            "current_race": history[0],
+            "history": history,
+            "next_race": next_race
+        }
+         publish_mqtt(config, payload)
     
     while True:
         try:
@@ -417,13 +465,17 @@ def main():
             # Actually, `fetch_recent_races` with limit=1 is fine
             new_results = fetch_recent_races(config, limit=1)
             
+            next_race = fetch_next_race(config)
+            
             if new_results:
                 history = update_history(new_results)
                 
+            if history:
                 payload = {
                     "last_updated": datetime.datetime.now().isoformat(),
                     "current_race": history[0],
-                    "history": history
+                    "history": history,
+                    "next_race": next_race
                 }
                 
                 publish_mqtt(config, payload)

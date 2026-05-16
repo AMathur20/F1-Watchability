@@ -16,7 +16,7 @@ views:
                     card:
                       - background: none
                       - box-shadow: none
-                      - padding-bottom: 25px
+                      - padding-bottom: 5px
                       - border: none
                     name:
                       - font-family: '''Formula1-Display-Bold'', sans-serif'
@@ -24,6 +24,9 @@ views:
                       - color: white
                       - text-shadow: 0 0 15px rgba(255,255,255,0.4)
                       - justify-self: center
+                - type: custom:button-card
+                  entity: sensor.f1_watchability
+                  template: f1_countdown
                 - type: grid
                   columns: '[[[ return window.innerWidth < 500 ? 1 : 2 ]]]'
                   square: false

@@ -135,3 +135,51 @@ button_card_templates:
 
             </div>`;
         ]]]
+  f1_countdown:
+    show_icon: false
+    show_name: false
+    show_state: false
+    styles:
+      card:
+        - background: none
+        - border: none
+        - box-shadow: none
+        - padding: 0px 0px 20px 0px
+    custom_fields:
+      content: |
+        [[[
+          var next_race = entity.attributes.next_race;
+          if (!next_race || next_race === 'null') return `<div style="color:white; font-family:'Formula1-Display-Bold'; font-size:14px; text-align:center;">Next Race: TBD</div>`;
+          
+          var raceName = next_race.gp_name;
+          var raceDate = new Date(next_race.race_date).getTime();
+          
+          var uid = "cd_" + Math.random().toString(36).substr(2, 9);
+          
+          setTimeout(() => {
+            var interval = setInterval(() => {
+              var el = document.getElementById(uid);
+              if (!el) {
+                clearInterval(interval);
+                return;
+              }
+              var now = new Date().getTime();
+              var distance = raceDate - now;
+              
+              if (distance < 0) {
+                el.innerHTML = `${raceName} (Now / Finished)`;
+                clearInterval(interval);
+                return;
+              }
+              
+              var days = Math.floor(distance / (1000 * 60 * 60 * 24));
+              var hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+              var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+              var seconds = Math.floor((distance % (1000 * 60)) / 1000);
+              
+              el.innerHTML = `${raceName} in ${days}d ${hours}h ${minutes}m ${seconds}s`;
+            }, 1000);
+          }, 0);
+          
+          return `<div style="color:white; font-family:'Formula1-Display-Bold'; font-size:14px; text-align:center; text-shadow: 0 0 10px rgba(255,255,255,0.4);">Next Race: <span id="${uid}">Loading...</span></div>`;
+        ]]]
