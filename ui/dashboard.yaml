@@ -1,3 +1,6 @@
+views:
+  - title: Home
+    path: home
     cards:
       - type: custom:gap-card
       - type: custom:button-card
