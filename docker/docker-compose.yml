@@ -13,10 +13,3 @@ services:
       - ./weights.json:/app/weights.json
     environment:
       - PYTHONUNBUFFERED=1
-      # MQTT Configuration (Can be set here or in Portainer UI)
-      - MQTT_BROKER=192.168.1.X
-      - MQTT_PORT=1883
-      - MQTT_USERNAME=your_username
-      - MQTT_PASSWORD=your_password
-      - CHECK_INTERVAL=3600
-      - TZ=UTC
