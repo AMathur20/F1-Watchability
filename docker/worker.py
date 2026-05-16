@@ -300,9 +300,10 @@ def fetch_recent_races(config, limit=5):
         logger.info(f"Fetching races for schedule year {year}...")
         try:
             schedule = fastf1.get_event_schedule(year)
+            event_dates = pd.to_datetime(schedule['EventDate']).dt.tz_localize(None)
             # Filter for completed events excluding testing
             past_events = schedule[
-                (schedule['EventDate'] < now) & 
+                (event_dates < now) & 
                 (~schedule['EventName'].str.contains('Testing|Presse', case=False, na=False))
             ]
             
@@ -350,17 +351,19 @@ def fetch_next_race(config):
     
     try:
         schedule = fastf1.get_event_schedule(year)
+        event_dates = pd.to_datetime(schedule['EventDate']).dt.tz_localize(None)
         # Filter for future events excluding testing
         future_events = schedule[
-            (schedule['EventDate'] >= now) & 
+            (event_dates >= now) & 
             (~schedule['EventName'].str.contains('Testing|Presse', case=False, na=False))
         ]
         
         if future_events.empty:
             year += 1
             schedule = fastf1.get_event_schedule(year)
+            event_dates = pd.to_datetime(schedule['EventDate']).dt.tz_localize(None)
             future_events = schedule[
-                (schedule['EventDate'] >= now) & 
+                (event_dates >= now) & 
                 (~schedule['EventName'].str.contains('Testing|Presse', case=False, na=False))
             ]
             
