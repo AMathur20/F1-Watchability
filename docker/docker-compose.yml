@@ -5,11 +5,12 @@ services:
     restart: unless-stopped
     volumes:
       # Mount cache for persistence (Required)
-      - f1_cache:/app/f1_cache
+      - ./f1_cache:/app/f1_cache
       # Mount history for persistence (Required)
-      - f1_history:/app/f1_history.json
-      # Mount weights (Required if custom, otherwise built-in)
-      # - ./weights.json:/app/weights.json
+      - ./f1_history.json:/app/f1_history.json
+      # Mount config and weights
+      - ./config.json:/app/config.json
+      - ./weights.json:/app/weights.json
     environment:
       - PYTHONUNBUFFERED=1
       # MQTT Configuration (Can be set here or in Portainer UI)
@@ -19,7 +20,3 @@ services:
       - MQTT_PASSWORD=your_password
       - CHECK_INTERVAL=3600
       - TZ=UTC
-
-volumes:
-  f1_cache:
-  f1_history:
