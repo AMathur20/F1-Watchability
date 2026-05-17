@@ -156,30 +156,23 @@ button_card_templates:
           
           var uid = "cd_" + Math.random().toString(36).substr(2, 9);
           
-          setTimeout(() => {
-            var interval = setInterval(() => {
-              var el = document.getElementById(uid);
-              if (!el) {
-                clearInterval(interval);
-                return;
-              }
-              var now = new Date().getTime();
-              var distance = raceDate - now;
-              
+          var script = `
+            if(window['int_${uid}']) clearInterval(window['int_${uid}']);
+            var span = this.parentElement;
+            window['int_${uid}'] = setInterval(function() {
+              var distance = ${raceDate} - new Date().getTime();
               if (distance < 0) {
-                el.innerHTML = `${raceName} (Now / Finished)`;
-                clearInterval(interval);
+                span.innerHTML = '${raceName.replace(/'/g, "\\'")} (Now / Finished)';
+                clearInterval(window['int_${uid}']);
                 return;
               }
-              
               var days = Math.floor(distance / (1000 * 60 * 60 * 24));
               var hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
               var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
               var seconds = Math.floor((distance % (1000 * 60)) / 1000);
-              
-              el.innerHTML = `${raceName} in ${days}d ${hours}h ${minutes}m ${seconds}s`;
+              span.innerHTML = '${raceName.replace(/'/g, "\\'")} in ' + days + 'd ' + hours + 'h ' + minutes + 'm ' + seconds + 's';
             }, 1000);
-          }, 0);
+          `;
           
-          return `<div style="color:white; font-family:'Formula1-Display-Bold'; font-size:14px; text-align:center; text-shadow: 0 0 10px rgba(255,255,255,0.4);">Next Race: <span id="${uid}">Loading...</span></div>`;
+          return `<div style="color:white; font-family:'Formula1-Display-Bold'; font-size:14px; text-align:center; text-shadow: 0 0 10px rgba(255,255,255,0.4);">Next Race: <span id="${uid}">Loading...<img src="x" onerror="${script.replace(/"/g, '&quot;')}" style="display:none;"></span></div>`;
         ]]]
