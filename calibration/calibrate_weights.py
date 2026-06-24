@@ -250,7 +250,7 @@ def get_telemetry_metrics(session):
         results = session.results
         if results is not None and not results.empty:
             started = len(results)
-            finished = results[results['Status'].str.contains('Finished|\+1 Lap|\+2 Laps|\+3 Laps', case=False, na=False)].shape[0]
+            finished = results[results['Status'].str.contains('Finished|\\+1 Lap|\\+2 Laps|\\+3 Laps', case=False, na=False)].shape[0]
             retirement_rate = (started - finished) / started if started > 0 else 0
         else:
             retirement_rate = 0
@@ -453,7 +453,11 @@ def main():
         'weather_volatility', 
         'safety_car_freq',
         'pit_stop_intensity',
-        'retirement_rate'
+        'retirement_rate',
+        'championship_active',
+        'championship_tension',
+        'title_clinched',
+        'leader_changed'
     ]
     X_race = df_race[features]
     y_race = df_race['rating']
@@ -462,7 +466,7 @@ def main():
     model_race.fit(X_race, y_race)
 
     weights = {
-        "formula_version": "3.0",
+        "formula_version": "4.0",
         "last_updated": datetime.now().strftime("%Y-%m-%d"),
         "weights": {
             "overtakes_per_lap": round(model_race.coef_[0], 4),
@@ -471,6 +475,10 @@ def main():
             "safety_car_laps_ratio": round(model_race.coef_[3], 4),
             "pit_stop_intensity": round(model_race.coef_[4], 4),
             "retirement_rate": round(model_race.coef_[5], 4),
+            "championship_active": round(model_race.coef_[6], 4),
+            "championship_tension": round(model_race.coef_[7], 4),
+            "title_clinched": round(model_race.coef_[8], 4),
+            "leader_changed": round(model_race.coef_[9], 4),
             "base_score": round(model_race.intercept_, 4)
         },
         "thresholds": {
@@ -500,6 +508,10 @@ def main():
             "safety_car_laps_ratio": round(model_sprint.coef_[3], 4),
             "pit_stop_intensity": round(model_sprint.coef_[4], 4),
             "retirement_rate": round(model_sprint.coef_[5], 4),
+            "championship_active": round(model_sprint.coef_[6], 4),
+            "championship_tension": round(model_sprint.coef_[7], 4),
+            "title_clinched": round(model_sprint.coef_[8], 4),
+            "leader_changed": round(model_sprint.coef_[9], 4),
             "base_score": round(model_sprint.intercept_, 4)
         }
     else:

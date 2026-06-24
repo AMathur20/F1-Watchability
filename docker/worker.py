@@ -155,7 +155,7 @@ def calculate_metrics(session):
         results = session.results
         if results is not None and not results.empty:
             started = len(results)
-            finished = results[results['Status'].str.contains('Finished|\+1 Lap|\+2 Laps|\+3 Laps', case=False, na=False)].shape[0]
+            finished = results[results['Status'].str.contains('Finished|\\+1 Lap|\\+2 Laps|\\+3 Laps', case=False, na=False)].shape[0]
             retirement_rate = (started - finished) / started if started > 0 else 0
         else:
             retirement_rate = 0
@@ -172,6 +172,89 @@ def calculate_metrics(session):
     except Exception as e:
         logger.error(f"Error processing metrics: {e}")
         return None
+
+def get_remaining_points(schedule, current_round, session_type):
+    future_rounds = schedule[schedule['RoundNumber'] > current_round]
+    remaining_gps = 0
+    remaining_sprints = 0
+    for _, row in future_rounds.iterrows():
+        remaining_gps += 1
+        if 'sprint' in str(row['EventFormat']).lower():
+            remaining_sprints += 1
+    if session_type == 'Sprint':
+        remaining_gps += 1
+    return (remaining_gps * 26) + (remaining_sprints * 8)
+
+def calculate_standings_metrics(year, round_num, session_type, schedule):
+    import collections
+    driver_points = collections.defaultdict(float)
+    schedule_races = schedule[schedule['RoundNumber'] > 0]
+    
+    gap_before, leader_before = 0.0, None
+    
+    for _, event in schedule_races.iterrows():
+        r_num = int(event['RoundNumber'])
+        if r_num > round_num:
+            break
+            
+        is_sprint_weekend = 'sprint' in str(event['EventFormat']).lower()
+        sessions = ['Sprint', 'R'] if is_sprint_weekend else ['R']
+        
+        for s_type in sessions:
+            if r_num == round_num:
+                if session_type == 'Sprint' and s_type == 'R':
+                    break
+                    
+            if r_num == round_num and s_type == session_type:
+                sorted_st = sorted(driver_points.items(), key=lambda x: x[1], reverse=True)
+                gap_before = sorted_st[0][1] - sorted_st[1][1] if len(sorted_st) >= 2 else 0.0
+                leader_before = sorted_st[0][0] if len(sorted_st) >= 1 else None
+                
+            try:
+                session = fastf1.get_session(year, r_num, s_type)
+                session.load(laps=False, telemetry=False, weather=False, messages=False)
+                results = session.results
+                if results is not None and not results.empty:
+                    for _, row in results.iterrows():
+                        driver = row['Abbreviation']
+                        pts = float(row['Points'])
+                        driver_points[driver] += pts
+            except Exception as e:
+                logger.error(f"Error loading {year} Round {r_num} {s_type} in standings calc: {e}")
+                
+            if r_num == round_num and s_type == session_type:
+                break
+                
+    sorted_after = sorted(driver_points.items(), key=lambda x: x[1], reverse=True)
+    gap_after = sorted_after[0][1] - sorted_after[1][1] if len(sorted_after) >= 2 else 0.0
+    leader_after = sorted_after[0][0] if len(sorted_after) >= 1 else None
+    
+    rem_pts_before = get_remaining_points(schedule, round_num, session_type)
+    rem_pts_before += 8 if session_type == 'Sprint' else 26
+    rem_pts_after = get_remaining_points(schedule, round_num, session_type)
+    
+    championship_active = 1
+    if len(driver_points) >= 2:
+        championship_active = 1 if gap_before <= rem_pts_before else 0
+        
+    title_clinched = 0
+    if championship_active == 1 and gap_after > rem_pts_after:
+        title_clinched = 1
+        
+    leader_changed = 0
+    if leader_before is not None and leader_after != leader_before:
+        leader_changed = 1
+        
+    tension = 0.0
+    if championship_active == 1 and rem_pts_before > 0:
+        tension = 1.0 - (gap_before / rem_pts_before)
+        
+    return {
+        "championship_active": championship_active,
+        "championship_tension": round(tension, 4),
+        "title_clinched": title_clinched,
+        "leader_changed": leader_changed
+    }
 
 def process_race(year, gp_name, round_num):
     """
@@ -193,12 +276,17 @@ def process_race(year, gp_name, round_num):
         t = weights_data.get('thresholds', {})
         sw = weights_data.get('sprint_weights', w) # Fallback to standard weights
 
+        # Fetch schedule for standings
+        schedule = fastf1.get_event_schedule(year)
+
         # Process Main Race ('R')
         logger.info(f"Analyzing {year} {gp_name} (Round {round_num})...")
         session = fastf1.get_session(year, round_num, 'R')
         metrics = calculate_metrics(session)
         
         if metrics:
+            st = calculate_standings_metrics(year, round_num, 'R', schedule)
+            
             score = (
                 (metrics['overtakes_per_lap'] * w.get('overtakes_per_lap', 0)) +
                 (metrics['lead_changes'] * w.get('lead_changes', 0)) +
@@ -206,6 +294,10 @@ def process_race(year, gp_name, round_num):
                 (metrics['safety_car_laps_ratio'] * w.get('safety_car_laps_ratio', 0)) +
                 (metrics['pit_stop_intensity'] * w.get('pit_stop_intensity', 0)) +
                 (metrics['retirement_rate'] * w.get('retirement_rate', 0)) +
+                (st['championship_active'] * w.get('championship_active', 0)) +
+                (st['championship_tension'] * w.get('championship_tension', 0)) +
+                (st['title_clinched'] * w.get('title_clinched', 0)) +
+                (st['leader_changed'] * w.get('leader_changed', 0)) +
                 w.get('base_score', 0)
             )
             
@@ -220,6 +312,8 @@ def process_race(year, gp_name, round_num):
             elif score >= t.get('race_in_30', 5.0):
                 icon = "⏱️"
                 recommendation = "Watch Race in 30"
+                
+            metrics.update(st)
                 
             results.append({
                 "gp": gp_name,
@@ -241,6 +335,8 @@ def process_race(year, gp_name, round_num):
              sprint_metrics = calculate_metrics(sprint_session)
              
              if sprint_metrics:
+                 st_s = calculate_standings_metrics(year, round_num, 'Sprint', schedule)
+                 
                  s_score = (
                      (sprint_metrics['overtakes_per_lap'] * sw.get('overtakes_per_lap', 0)) +
                      (sprint_metrics['lead_changes'] * sw.get('lead_changes', 0)) +
@@ -248,6 +344,10 @@ def process_race(year, gp_name, round_num):
                      (sprint_metrics['safety_car_laps_ratio'] * sw.get('safety_car_laps_ratio', 0)) +
                      (sprint_metrics['pit_stop_intensity'] * sw.get('pit_stop_intensity', 0)) +
                      (sprint_metrics['retirement_rate'] * sw.get('retirement_rate', 0)) +
+                     (st_s['championship_active'] * sw.get('championship_active', 0)) +
+                     (st_s['championship_tension'] * sw.get('championship_tension', 0)) +
+                     (st_s['title_clinched'] * sw.get('title_clinched', 0)) +
+                     (st_s['leader_changed'] * sw.get('leader_changed', 0)) +
                      sw.get('base_score', 0)
                  )
                  
@@ -262,6 +362,8 @@ def process_race(year, gp_name, round_num):
                  elif s_score >= t.get('race_in_30', 5.0):
                      sprint_icon = "⏱️"
                      sprint_recommendation = "Watch Race in 30"
+                     
+                 sprint_metrics.update(st_s)
                      
                  results.append({
                      "gp": f"{gp_name} Sprint",

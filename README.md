@@ -6,17 +6,21 @@ An open-source tool for Home Assistant to calculate and display a spoiler-free "
 
 This system helps you decide whether to watch a full race, a condensed version, or just the highlights, based on objective telemetry data correlated with historical fan sentiment. It fully supports calculating watchability for both **Grand Prix** and **Sprint** race sessions.
 
+Starting in version 4.0, the watchability model incorporates **season-long driver championship standings stakes** alongside race telemetry. This allows the score to reflect the narrative importance of a session (e.g. close title fights, championship leader changes, title clinching races, and dead-rubber races).
+
 The project is divided into three components:
 
 1.  **Calibration** (`/calibration`):
-    -   Automated scraping of F1 Hot or Not ratings for Grand Prix and Sprint sessions.
+    -   Scraping of race fan ratings for Grand Prix and Sprint sessions.
     -   Analyzes race telemetry via FastF1.
+    -   Reconstructs historical season standings to generate championship metrics.
     -   Generates tailored, weighted models (`weights.json`) for both race formats.
 
 2.  **Inference** (`/docker`):
     -   Standalone Docker container.
     -   Runs periodically (default 1h) and checks for race completions.
-    -   Calculates score and publishes to Home Assistant via MQTT.
+    -   Reconstructs standings on the fly and calculates the final watchability score.
+    -   Publishes data to Home Assistant via MQTT.
     -   Updates `sensor.f1_watchability`.
     -   The Portainer branch contains a release that can be used directly through Portainer. See the branch readme for more information.
 
