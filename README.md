@@ -12,7 +12,7 @@ The project is divided into three components:
 
 1.  **Calibration** (`/calibration`):
     -   Scraping of race fan ratings for Grand Prix and Sprint sessions.
-    -   Analyzes race telemetry via FastF1.
+    -   Analyzes race telemetry via OpenF1 and schedules/results via Jolpica-F1.
     -   Reconstructs historical season standings to generate championship metrics.
     -   Generates tailored, weighted models (`weights.json`) for both race formats.
 

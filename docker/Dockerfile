@@ -1,4 +1,4 @@
-FROM python:3.9-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 
@@ -8,9 +8,6 @@ RUN apt-get update && apt-get install -y tzdata && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY worker.py .
-# Copy weights from parent or assume they are copied to build context
-# We will assume build context includes everything or we copy explicitly
-# For now, let's assume we copy them in.
+COPY f1_data.py worker.py ./
 
 CMD ["python", "worker.py"]

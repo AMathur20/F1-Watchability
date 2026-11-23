@@ -4,8 +4,8 @@ This service runs the F1 Watchability inference engine in a standalone Docker co
 
 ## Overview
 
--   **Worker**: `worker.py` (Python 3.9+)
--   **Dependencies**: `fastf1`, `pandas`, `paho-mqtt`
+-   **Worker**: `worker.py` (Python 3.11+, backed by OpenF1 + Jolpica-F1)
+-   **Dependencies**: `requests`, `pandas`, `numpy`, `paho-mqtt`
 -   **Communication**: Publishes race scores to an MQTT broker.
 
 ## Configuration
@@ -19,7 +19,7 @@ This service runs the F1 Watchability inference engine in a standalone Docker co
         "mqtt_username": "user",
         "mqtt_password": "password",
         "check_interval_seconds": 3600,
-        "fastf1_cache_dir": "/app/f1_cache",
+        "cache_dir": "/app/f1_cache",
         "timezone": "Europe/London"
     }
     ```

@@ -1,5 +1,4 @@
-fastf1
+requests
 pandas
 numpy
 paho-mqtt
-scikit-learn

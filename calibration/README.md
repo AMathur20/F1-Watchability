@@ -22,7 +22,7 @@ This folder contains the calibration logic for the F1 Watchability Engine.
 ## Output
 
 The script will generate:
--   `cache/`: FastF1 cache directory.
+-   `cache/`: OpenF1 / Jolpica-F1 API cache directory.
 -   `calibration_data.csv`: Raw metrics and ratings for debugging.
 -   `weights.json`: The calculated regression coefficients and thresholds.
 
