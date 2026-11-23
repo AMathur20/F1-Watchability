@@ -22,9 +22,10 @@ WEIGHTS_PATH = os.path.join(APP_DIR, 'weights.json')
 
 # Persistent Data Directory
 ENV_DATA_DIR = os.getenv("DATA_DIR")
+APP_HISTORY_CANDIDATE = os.path.join(APP_DIR, 'f1_history.json')
 if ENV_DATA_DIR:
     DATA_DIR = ENV_DATA_DIR
-elif os.path.exists(os.path.join(APP_DIR, 'f1_history.json')):
+elif os.path.exists(APP_HISTORY_CANDIDATE):
     DATA_DIR = APP_DIR
 else:
     DATA_DIR = "/data"
@@ -37,6 +38,9 @@ if not os.path.exists(DATA_DIR):
         DATA_DIR = APP_DIR
 
 HISTORY_PATH = os.path.join(DATA_DIR, 'f1_history.json')
+# Handle Docker bind-mount quirk where mounting a nonexistent file creates a directory at HISTORY_PATH
+if os.path.isdir(HISTORY_PATH):
+    HISTORY_PATH = os.path.join(HISTORY_PATH, 'f1_history.json')
 CACHE_DIR = os.path.join(DATA_DIR, 'f1_cache')
 
 # Defaults
